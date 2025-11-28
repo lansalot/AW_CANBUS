@@ -45,7 +45,7 @@
 
  //----------------------------------------------------------
 
-String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 04.05.2024");
+String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 04.05.2024 (Adapted for TM171 and Andy's board 28.11.05");
 
 
 ////////////////// User Settings /////////////////////////  
@@ -97,6 +97,8 @@ NMEAParser<3> parser;
 extern "C" uint32_t set_arm_clock(uint32_t frequency); // required prototype
 extern float tempmonGetTemp(void);
 elapsedMillis tempChecker;
+elapsedMillis elapsedGPSLED;
+elapsedMillis elapsedIMULED;
 
 //----Teensy 4.1 Ethernet--Start---------------------
 #include <NativeEthernet.h>
@@ -137,8 +139,9 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_256> K_Bus;    //Tractor / Control Bus
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_256> ISO_Bus;  //ISO Bus
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;    //Steering Valve Bus
 
-#define ledPin 5        //Option for LED, CAN Valve Ready To Steer.
-#define engageLED 24    //Option for LED, to see if Engage message is recived.
+#define LED_TEENSY 13	//Teensy conversation with AOG
+#define LED_GPS 28		//GPS status
+#define LED_IMU 29		//IMU status
 
 uint8_t Brand = 1;              //Variable to set brand via serial monitor.
 uint8_t gpsMode = 2;            //Variable to set GPS mode via serial monitor, defaulting to 460800 because
@@ -356,30 +359,34 @@ void setup()
 {
 	// add string to imuScanResults for serial monitor
 
-    // add string to imuScanResults for serial monitor
+	// add string to imuScanResults for serial monitor
 	delay(500);                         //Small delay so serial can monitor start up
 	set_arm_clock(450000000);           //Set CPU speed to 450mhz
 	Serial.print("CPU speed set to: ");
 	Serial.println(F_CPU_ACTUAL);
 
 	//keep pulled high and drag low to activate, noise free safe   
-	pinMode(WORKSW_PIN, INPUT_PULLUP);
-	pinMode(STEERSW_PIN, INPUT_PULLUP);
-	pinMode(REMOTE_PIN, INPUT_PULLUP);
-	pinMode(DIR1_RL_ENABLE, OUTPUT);
 	pinMode(13, OUTPUT);
 
 	pinMode(PWM2_RPWM, OUTPUT);
 
 	//set up communication
+	Wire.setSCL(19); // Set I2C SCL to pin 19
+	Wire.setSDA(18); // Set I2C SDA to pin 18
 	Wire.begin();
 	Serial.begin(115200);
 
-	delay(2000);
+	//for(int i = 0; i < 3; i++) {
+	//	//digitalWrite(LED_IMU, !digitalRead(LED_IMU));
+	//	digitalWrite(LED_GPS, !digitalRead(LED_GPS));
+	//	delay(250);
+	//}
+	////digitalWrite(LED_IMU, LOW);
+	//digitalWrite(LED_GPS, LOW);
 
-	/*    while (!Serial) {
-	  ; // wait for serial port to connect. Needed for native USB port only
-	}*/
+	///*    while (!Serial) {
+	//  ; // wait for serial port to connect. Needed for native USB port only
+	//}*/
 
 	//SerialIMU->begin(115200);
 	//rvc.begin(SerialIMU);
@@ -427,7 +434,7 @@ void setup()
 		}
 		if (useBNO08x) break;
 	}
-	
+
 	//if (!useBNO08x) sendHardwareMessage("No i2c BNO08x found",2);
 	Serial.println("Checking for TM171");
 	TM171setup();
@@ -503,11 +510,7 @@ void setup()
 
 	//----Teensy 4.1 CANBus--Start---------------------
 
-	pinMode(ledPin, OUTPUT);    //CAN Valve Ready LED
-	digitalWrite(ledPin, LOW);
 
-	pinMode(engageLED, OUTPUT);  //CAN engage LED
-	digitalWrite(engageLED, LOW);
 
 	Serial.println("\r\nStarting CAN-Bus Ports");
 	if (Brand == 0) Serial.println("Brand = Claas (Set Via Service Tool)");
@@ -552,11 +555,15 @@ void setup()
 		  Serial.print(speedCheck);
 		  Serial.println(" Micros, Done...");
 	*/
+	pinMode(LED_IMU, OUTPUT); digitalWrite(LED_IMU, LOW);
+	pinMode(LED_GPS, OUTPUT); digitalWrite(LED_GPS, LOW);
+	pinMode(LED_TEENSY, OUTPUT); digitalWrite(LED_TEENSY, LOW);
 }
 // End of Setup
 
 void loop()
 {
+
 
 	currentTime = millis();
 	//--Main Timed Loop----------------------------------   
@@ -572,15 +579,7 @@ void loop()
 
 		//read all the switches
 
-		//CANBus     
-		if (steeringValveReady == 20 || steeringValveReady == 16)
-		{
-			digitalWrite(ledPin, HIGH);
-		}
-		else
-		{
-			digitalWrite(ledPin, LOW);
-		}
+
 
 		workSwitch = digitalRead(WORKSW_PIN);     // read work switch (PCB pin)
 		if (workCAN == 1) workSwitch = 0;         // If CAN workswitch is on, set workSwitch ON
@@ -596,7 +595,6 @@ void loop()
 			if (guidanceStatus == 1)    //Must have changed Off >> On
 			{
 				Time = millis();
-				digitalWrite(engageLED, HIGH);
 
 				engageCAN = 1;
 				relayTime = ((millis() + 1000));
@@ -736,7 +734,6 @@ void loop()
 	K_Receive();
 
 	if ((millis()) > relayTime) {
-		digitalWrite(engageLED, LOW);
 		engageCAN = 0;
 	}
 
@@ -904,8 +901,8 @@ void udpSteerRecv(int sizeToRead)
 			helloCounter = 0;
 
 			if (blink)
-				digitalWrite(13, HIGH);
-			else digitalWrite(13, LOW);
+				digitalWrite(LED_TEENSY, HIGH);
+			else digitalWrite(LED_TEENSY, LOW);
 			blink = !blink;
 
 			//Serial.println(steerAngleActual); 

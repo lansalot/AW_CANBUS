@@ -99,6 +99,7 @@ void TM171process() {
             //      if (GoodCRC(ImuData,packetLength+5))
             if (GoodCRC(ImuData, ImuData[2] + 5))
             {
+                digitalWrite(LED_IMU, !digitalRead(LED_IMU));
                 TM171lastData = 0;
                 uint8_t functionCode = ImuData[3]; // Function ID (documented at 4th byte)
                 switch (functionCode)

@@ -44,7 +44,8 @@ void CAN_setup(void) {
 	}
 	if (Brand == 4) {
 		V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT);  //JCB Curve Data & Valve State Message
-		V_Bus.setFIFOFilter(1, 0x18EFAB27, EXT);  //JCB engage message
+		V_Bus.setFIFOFilter(1, 0x0CEFAB27, EXT);  //JCB engage message icon
+		V_Bus.setFIFOFilter(2, 0x18EFAB27, EXT);  //JCB engage message
 		CANBUS_ModuleID = 0xAB;
 	}
 	if (Brand == 5) {
@@ -360,7 +361,7 @@ void VBus_Receive()
 				{
 					engageCAN = bitRead(VBusReceiveData.buf[0], 2);
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					relayTime = ((millis() + 1000));
 					//*****Turn saftey valve ON**********
 					if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);
@@ -370,7 +371,7 @@ void VBus_Receive()
 				{
 					engageCAN = bitRead(VBusReceiveData.buf[1], 0);
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					relayTime = ((millis() + 1000));
 					//*****Turn saftey valve ON**********
 					if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);
@@ -380,7 +381,7 @@ void VBus_Receive()
 				{
 					engageCAN = bitRead(VBusReceiveData.buf[0], 2);
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					relayTime = ((millis() + 1000));
 					//*****Turn saftey valve ON**********
 					if (engageCAN == 1) digitalWrite(PWM2_RPWM, 1);
@@ -408,7 +409,7 @@ void VBus_Receive()
 				static uint8_t lastValveState = steeringValveReady;
 				if (steeringValveReady == 80 && lastValveState == 20)
 				{
-					sendHardwareMessage("MF8S Steering Valve Fault - Resetting Steering Controller",3);
+					sendHardwareMessage("MF8S Steering Valve Fault - Resetting Steering Controller", 3);
 					steeringValveReady = 20;
 					intendToSteer = 0;
 					VBus_Send();
@@ -426,7 +427,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -437,7 +438,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[3]) == 255)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -447,7 +448,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -457,7 +458,7 @@ void VBus_Receive()
 				if (bitRead(VBusReceiveData.buf[5], 3) == 1)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -480,7 +481,7 @@ void VBus_Receive()
 				if (bitRead(VBusReceiveData.buf[0], 2))
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -511,13 +512,24 @@ void VBus_Receive()
 				steeringValveReady = (VBusReceiveData.buf[2]);
 			}
 
-			//**Engage Message**
+			//**Engage Message** ICON
+			if (VBusReceiveData.id == 0x0CEFAB27)
+			{
+				if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
+				{
+					Time = millis();
+
+					engageCAN = 1;
+					relayTime = ((millis() + 1000));
+				}
+			}
+			//**Engage Message** Pre Icon
 			if (VBusReceiveData.id == 0x18EFAB27)
 			{
 				if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -554,7 +566,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -607,7 +619,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 0x0F && (VBusReceiveData.buf[1]) == 0x60)   //MT Engage
 				{
 					if (VBusReceiveData.buf[2] == 0x01) {
-						digitalWrite(engageLED, HIGH);
+	
 						engageCAN = 1;
 						relayTime = ((millis() + 1000));
 					}
@@ -648,7 +660,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 0x0F && (VBusReceiveData.buf[1]) == 0x60)   //MT Engage
 				{
 					if (VBusReceiveData.buf[2] == 0x01) {
-						digitalWrite(engageLED, HIGH);
+	
 						engageCAN = 1;
 						relayTime = ((millis() + 1000));
 					}
@@ -717,7 +729,7 @@ void ISO_Receive()
 			if (ISOBusReceiveData.id == 0x18EF2CF0)   //**Fendt Engage Message**  
 			{
 				if ((ISOBusReceiveData.buf[0]) == 0x0F && (ISOBusReceiveData.buf[1]) == 0x60 && (ISOBusReceiveData.buf[2]) == 0x01) {
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -767,10 +779,9 @@ void K_Receive()
 			if (KBusReceiveData.id == 0x45a && KBusReceiveData.buf[1] & 0x04) // Massey 6/7/8000 series headland button
 			{
 				Time = millis();
-				digitalWrite(engageLED, HIGH);
 				engageCAN = 1;
 				relayTime = ((millis() + 1000));
-				sendHardwareMessage("Engaged via headland button",3);
+				sendHardwareMessage("Engaged via headland button", 3);
 			}
 			if (KBusReceiveData.id == 0xCFF2621) //**MF 7S  / MF 8s Engage Message**
 			{
@@ -779,7 +790,7 @@ void K_Receive()
 					Time = millis();
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
-					sendHardwareMessage("Engaged via autosteer button",3);
+					sendHardwareMessage("Engaged via autosteer button", 3);
 				}
 			}
 		}
@@ -791,7 +802,7 @@ void K_Receive()
 				if (KBusReceiveData.buf[4] & 0x01) // Deutz Engage bit 4th position 01   
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -803,7 +814,7 @@ void K_Receive()
 					//if (KBusReceiveData.buf[4]&0x40) // RPM 2   
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -819,7 +830,7 @@ void K_Receive()
 				if (KBusReceiveData.buf[1] == 0x88 && KBusReceiveData.buf[4] == 0x80) // Fendt Auto Steer Go   
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -833,7 +844,7 @@ void K_Receive()
 				if ((KBusReceiveData.buf[3]) == 0xF6)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -848,7 +859,7 @@ void K_Receive()
 				if ((KBusReceiveData.buf[0]) == 130 && (KBusReceiveData.buf[1]) == 1)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}
@@ -856,7 +867,7 @@ void K_Receive()
 				if ((KBusReceiveData.buf[0]) == 178 && (KBusReceiveData.buf[1]) == 4)
 				{
 					Time = millis();
-					digitalWrite(engageLED, HIGH);
+
 					engageCAN = 1;
 					relayTime = ((millis() + 1000));
 				}

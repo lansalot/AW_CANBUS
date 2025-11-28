@@ -227,6 +227,11 @@ void imuHandler()
 
 void BuildNmea(void)
 {
+    if (elapsedGPSLED > 500)
+    {
+        digitalWrite(LED_GPS, !digitalRead(LED_GPS));
+        elapsedGPSLED = 0;
+	}
     strcpy(nmea, "");
 
     strcat(nmea, "$PANDA,");

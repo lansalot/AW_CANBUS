@@ -48,14 +48,16 @@ void Read_IMU()
 	if ((IMU_currentTime - lastGyroTime) >= GYRO_LOOP_TIME)
 	{
 		lastGyroTime = IMU_currentTime;
-
 		if (useBNO08x)
 		{
-			Serial.print("_");
 			if (bno08x.dataAvailable())
 			{
+				if (elapsedIMULED > 500)
+				{
+					digitalWrite(LED_IMU, !digitalRead(LED_IMU));
+					elapsedIMULED = 0;
+				}
 				IMU_LastReadTime = 0;
-				Serial.print("!");
 				float dqx, dqy, dqz, dqw, dacr;
 				uint8_t dac;
 
