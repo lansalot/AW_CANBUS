@@ -144,7 +144,7 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;    //Steering Valve Bus
 #define LED_IMU 29		//IMU status
 
 uint8_t Brand = 1;              //Variable to set brand via serial monitor.
-uint8_t gpsMode = 2;            //Variable to set GPS mode via serial monitor, defaulting to 460800 because
+uint8_t gpsMode = 4;            //Variable to set GPS mode via serial monitor, defaulting to 460800 because
 uint8_t CANBUS_ModuleID = 0x1C; //Used for the Module CAN ID
 
 bool reverse_MT = 0;
@@ -220,19 +220,17 @@ uint8_t N2K_129029_Data[48];
 
 //Swap BNO08x roll & pitch? - Note this is now sent from AgOpen
 
-//Roomba Vac mode for BNO085 and data
+
 elapsedMillis bnoTimer;
 bool bnoTrigger = false;
-HardwareSerial* SerialIMU = &Serial5;   //IMU BNO-085 or TM171
+HardwareSerial* SerialIMU = &Serial5;   //TM171
 
 // booleans to see what mode BNO08x
 bool useBNO08x = false;
 
 
 // BNO08x address variables to check where it is
-const uint8_t bno08xAddresses[] = { 0x4A,0x4B };
-const int16_t nrBNO08xAdresses = sizeof(bno08xAddresses) / sizeof(bno08xAddresses[0]);
-uint8_t bno08xAddress;
+uint8_t bno08xAddress = 0x4a;
 BNO080 bno08x;
 
 const uint16_t WATCHDOG_THRESHOLD = 100;
@@ -357,9 +355,7 @@ bool useTM171 = false;
 
 void setup()
 {
-	// add string to imuScanResults for serial monitor
 
-	// add string to imuScanResults for serial monitor
 	delay(500);                         //Small delay so serial can monitor start up
 	set_arm_clock(450000000);           //Set CPU speed to 450mhz
 	Serial.print("CPU speed set to: ");
@@ -375,67 +371,36 @@ void setup()
 	Wire.setSDA(18); // Set I2C SDA to pin 18
 	Wire.begin();
 	Serial.begin(115200);
-
-	//for(int i = 0; i < 3; i++) {
-	//	//digitalWrite(LED_IMU, !digitalRead(LED_IMU));
-	//	digitalWrite(LED_GPS, !digitalRead(LED_GPS));
-	//	delay(250);
-	//}
-	////digitalWrite(LED_IMU, LOW);
-	//digitalWrite(LED_GPS, LOW);
-
-	///*    while (!Serial) {
-	//  ; // wait for serial port to connect. Needed for native USB port only
-	//}*/
-
-	//SerialIMU->begin(115200);
-	//rvc.begin(SerialIMU);
+	SerialIMU->begin(115200);
 
 	// Check for i2c BNO08x
 	uint8_t error;
+	// This is only ever 0x4a, let's cut the shit here
+	Serial.println("\r\nChecking for BNO08X on 0x4A");
+	Wire.beginTransmission(bno08xAddress);
+	error = Wire.endTransmission();
 
-	for (int16_t i = 0; i < nrBNO08xAdresses; i++)
+	if (error == 0)
 	{
-		bno08xAddress = bno08xAddresses[i];
+		Serial.println("BNO08X Ok.");
 
-		Serial.print("\r\nChecking for BNO08X on ");
-		Serial.println(bno08xAddress, HEX);
-		Wire.beginTransmission(bno08xAddress);
-		error = Wire.endTransmission();
-
-		if (error == 0)
+		// Initialize BNO080 lib        
+		if (bno08x.begin(bno08xAddress))
 		{
-			Serial.println("Error = 0");
-			Serial.print("BNO08X ADDRESs: 0x");
-			Serial.println(bno08xAddress, HEX);
-			Serial.println("BNO08X Ok.");
+			Wire.setClock(400000); //Increase I2C data rate to 400kHz
+			delay(300);
 
-			// Initialize BNO080 lib        
-			if (bno08x.begin(bno08xAddress))
-			{
-				Wire.setClock(400000); //Increase I2C data rate to 400kHz
-				//bno08x.enableDebugging();
-				delay(300);
-
-				// Use GameRotationVector
-				bno08x.enableGameRotationVector(GYRO_LOOP_TIME);
-
-				useBNO08x = true;
-			}
-			else
-			{
-				Serial.println("BNO08x not detected at given I2C address.");
-			}
+			// Use GameRotationVector
+			bno08x.enableGameRotationVector(GYRO_LOOP_TIME);
+			useBNO08x = true;
 		}
-		else
-		{
-			Serial.println("Error = 4");
-			Serial.println("i2c BNO08x not Connected or Found");
-		}
-		if (useBNO08x) break;
+	}
+	else
+	{
+		Serial.print("Error = "); Serial.println(error);
+		Serial.println("i2c BNO08x not Connected or Found");
 	}
 
-	//if (!useBNO08x) sendHardwareMessage("No i2c BNO08x found",2);
 	Serial.println("Checking for TM171");
 	TM171setup();
 	delay(200);
@@ -1123,7 +1088,7 @@ void udpSteerRecv(int sizeToRead)
 				Serial.print(ip[1]); Serial.print(" . ");
 				Serial.print(ip[2]); Serial.print(" . ");
 				Serial.print(ip[3]); Serial.println();
-
+				Serial.print(millis()); Serial.print(" ms - ");
 				Serial.println(inoVersion); Serial.println();
 
 				if (Brand == 0) Serial.println("Brand = Claas (Set Via Service Tool)");
