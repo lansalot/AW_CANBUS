@@ -194,7 +194,7 @@ void VBus_Send() {
 		VBusSendData.len = 8;
 		VBusSendData.buf[0] = lowByte(setCurve);
 		VBusSendData.buf[1] = highByte(setCurve);
-		if (intendToSteer == 1) VBusSendData.buf[2] = 253; // from mf8s test
+		if (intendToSteer == 1 && Brand == 1) VBusSendData.buf[2] = 253; // from mf8s test
 		// if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10) VBusSendData.buf[2] = 253;
 		if (intendToSteer == 0) VBusSendData.buf[2] = 252;
 		VBusSendData.buf[3] = 0;
@@ -619,7 +619,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 0x0F && (VBusReceiveData.buf[1]) == 0x60)   //MT Engage
 				{
 					if (VBusReceiveData.buf[2] == 0x01) {
-	
+
 						engageCAN = 1;
 						relayTime = ((millis() + 1000));
 					}
@@ -660,7 +660,7 @@ void VBus_Receive()
 				if ((VBusReceiveData.buf[0]) == 0x0F && (VBusReceiveData.buf[1]) == 0x60)   //MT Engage
 				{
 					if (VBusReceiveData.buf[2] == 0x01) {
-	
+
 						engageCAN = 1;
 						relayTime = ((millis() + 1000));
 					}

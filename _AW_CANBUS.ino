@@ -371,8 +371,7 @@ void setup()
 	Wire.setSDA(18); // Set I2C SDA to pin 18
 	Wire.begin();
 	Serial.begin(115200);
-	SerialIMU->begin(115200);
-
+	
 	// Check for i2c BNO08x
 	uint8_t error;
 	// This is only ever 0x4a, let's cut the shit here
@@ -400,15 +399,17 @@ void setup()
 		Serial.print("Error = "); Serial.println(error);
 		Serial.println("i2c BNO08x not Connected or Found");
 	}
-
+	Serial.println("Giving it some time for TM171 to stabilise (if present)");
+	delay(2000);
 	Serial.println("Checking for TM171");
 	TM171setup();
-	delay(200);
+	delay(1000);
+
 	TM171process();
 	if (TM171lastData <= 80) {
 		Serial.println("Received data from TM171");
-		useTM171 = true;
 		imuHandler();
+		useTM171 = true;
 	}
 	else {
 		Serial.println("No fresh data from TM171");
@@ -720,11 +721,13 @@ void loop()
 	//--CAN--End-----
 
 	//**GPS**
-	TM171process();
-	if (useTM171 && imuTimer > 70 && imuTrigger)
-	{
-		imuTrigger = false;
-		imuHandler();
+	if (useTM171) {
+		TM171process();
+		if (imuTimer > 70 && imuTrigger)
+		{
+			imuTrigger = false;
+			imuHandler();
+		}
 	}
 	else if (useBNO08x)
 	{
