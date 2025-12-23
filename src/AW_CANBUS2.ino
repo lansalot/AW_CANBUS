@@ -64,7 +64,6 @@ String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 04.05.2024");
 
 //--------------------------- Switch Input Pins ------------------------
 #define STEERSW_PIN 6 // PD6
-#define REMOTE_PIN 8  // PB0
 
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
@@ -248,7 +247,7 @@ uint8_t relay = 0, relayHi = 0, uTurn = 0;
 uint8_t tram = 0;
 
 // Switches
-uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
+uint8_t workSwitch = 0, steerSwitch = 1, switchByte = 0;
 
 // On Off
 uint8_t guidanceStatus = 0;
@@ -271,7 +270,6 @@ float highLowPerDeg = 0;
 
 // Steer switch button
 uint8_t currentState = 1, reading, previous = 0;
-uint8_t pulseCount = 0; // Steering Wheel Encoder
 bool encEnable = false; // debounce flag
 uint8_t thisEnc = 0, lastEnc = 0;
 
@@ -345,15 +343,6 @@ bool useTM171 = false;
 #include "j1939.ino"
 // #include "GPS.ino"
 #include "_Utils.ino"
-
-// void EncoderFunc()
-// {
-//   if (encEnable)
-//   {
-//     pulseCount++;
-//     encEnable = false;
-//   }
-// }
 
 // Rob Tillaart, https://github.com/RobTillaart/MultiMap
 // error on next line re "error 't' does not name a type? This line should be as one
@@ -559,7 +548,6 @@ void setup()
   Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
 #ifdef useLED
   pinMode(STEERSW_PIN, INPUT_PULLUP);
-  pinMode(REMOTE_PIN, INPUT_PULLUP);
   pinMode(LED_IMU, OUTPUT);
   digitalWrite(LED_IMU, LOW);
   pinMode(LED_GPS, OUTPUT);
@@ -659,9 +647,8 @@ void loop()
       previous = HIGH;
     }
 
-    remoteSwitch = digitalRead(REMOTE_PIN); // read auto steer enable switch open = 0n closed = Off
     switchByte = 0;
-    switchByte |= (remoteSwitch << 2); // put remote in bit 2
+    switchByte |= (1 << 2); // put remote in bit 2
     switchByte |= (steerSwitch << 1);  // put steerswitch status in bit 1 position
     switchByte |= workSwitch;
 
@@ -729,7 +716,6 @@ void loop()
         pwmDrive = 0; // turn off steering motor
         motorDrive(); // out to motors the pwm value
       }
-      pulseCount = 0;
     }
 
     //-------CAN Set Curve ---------------
@@ -818,18 +804,6 @@ void loop()
   {
     // Serial.println("UDP Data Avalible");
     udpSteerRecv(packetSize);
-  }
-
-  if (encEnable)
-  {
-    thisEnc = digitalRead(REMOTE_PIN);
-    Serial.println("REMOTE_PIN changed!");
-    if (thisEnc != lastEnc)
-    {
-      lastEnc = thisEnc;
-      //if (lastEnc)
-        //EncoderFunc();
-    }
   }
 
 } // end of main loop
@@ -1260,8 +1234,6 @@ void udpSteerRecv(int sizeToRead)
   } // end if 80 81 7F
 
 } // end udp callback
-
-// ISR Steering Wheel Encoder
 
 // Hitch Control------------------------------------------------------------
 void SetRelaysFendt(void)
