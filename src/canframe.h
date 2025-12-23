@@ -85,7 +85,7 @@ public:
 	BytesUnion *get_data(void) { return &data; };
 	uint8_t get_length(void) { return length; };
 
-	void set_id(uint32_t message_id) { id = message_id };
+	void set_id(uint32_t message_id) { id = message_id; };
 	void set_extended(bool flag) { extended = flag; };
 	void set_length(uint8_t len) { length = len; };
 #endif

@@ -1,3 +1,6 @@
+#ifndef _UTILS_H
+#define _UTILS_H
+#include <Arduino.h>
 // ----------------------------------------------------------
 // Send a hardware message with proper header, payload, and CRC
 // ----------------------------------------------------------
@@ -37,3 +40,4 @@ void sendHardwareMessage(const String& message, byte seconds)
     Udp.write(hardwareMessage, totalLength);
     Udp.endPacket();
 }
+#endif

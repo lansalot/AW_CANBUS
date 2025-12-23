@@ -1,3 +1,5 @@
+#ifndef CAN_Service_Tool_ino
+#define CAN_Service_Tool_ino
 
 // Danfoss PVED-CL Service Tool for use with AgOpenGPS
 // The Danfoss PVED-CL parts are not in here yet, but will be copied over soon
@@ -36,65 +38,53 @@
 //
 //---------------------------------------------------------
 
-void Service_Tool (void) 
+void WriteParameters()
 {
-  Serial.println("\r\nAgOpenGPS CANBUS Service Tool Mode:");
-  Help();
-  
-  while (Service == 1) 
-  {
-  
-      if (Serial.available())   // Read Data From Serail Monitor 
-      {    
-        byte b = Serial.read();
-        if ( b == '?') Help();          
-        else if ( b == 'X') Service = 0; //Exit Service Mode
-        else if ( b == '0') Claas();
-        else if ( b == '1') Valtra();
-        else if ( b == '2') CNH();
-        else if ( b == '3') Fendt();
-        else if ( b == '4') JCB();
-        else if ( b == '5') FendtOne();
-        else if ( b == '6') Lindner();
-        else if ( b == '7') AgOpenGPS();
-        else if ( b == '8') CatMT();
-        else if ( b == '9') CatMT_Early();
-        else if ( b == 'D') Deutz();
-        else if ( b == 'R') ReadCAN();
-        else if ( b == 'S') StopCAN();
-        else if ( b == 'Z') setupPVED();
-        else if ( b == 'f') gpsModeOne();
-        else if ( b == 'F') gpsModeTwo();
-        else if ( b == 'p') gpsModeThree();
-        else if ( b == 'P') gpsModeFour();
-
-        else
-        {
-          Serial.println("No command, send ? for help");
-          Serial.println(" ");
-          delay(50);
-        }
-
-        while (Serial.available())
-        {
-        Serial.read();                //Clear the serial buffer
-        }
-      }
-
-      if (tempChecker > 10000)
-      {
-          tempChecker = 0;
-          float temp = tempmonGetTemp();
-          Serial.print(temp, 2);
-          Serial.println(" degC CPU Temp");
-      }
-
-  }
+    // Change parameter 64007 to 30(Dec) 1E(Hex)
+    CAN_message_t msgP;
+    msgP.id = 0x98EF13FD;
+    msgP.flags.extended = true;
+    msgP.len = 8;
+    msgP.buf[0] = 0x0F;
+    msgP.buf[1] = 0xA2;
+    msgP.buf[2] = 0x07;
+    msgP.buf[3] = 0xFA;
+    msgP.buf[4] = 0x1E;
+    msgP.buf[5] = 0x00;
+    msgP.buf[6] = 0x00;
+    msgP.buf[7] = 0x00;
+    V_Bus.write(msgP);
+    
+    delay(100);
+    Serial.println("Sent parameter change request, make sure you send commit command next");
 }
 
 //**************************************************************************************
+
+void Commit()
+{
+    // Commit parameters to PVED-CL  
+    CAN_message_t msgC;
+    msgC.id = 0x98EF13FD;
+    msgC.flags.extended = true;
+    msgC.len = 8;
+    msgC.buf[0] = 0x0F;
+    msgC.buf[1] = 0xA6;
+    msgC.buf[2] = 0x5A;
+    msgC.buf[3] = 0x00;
+    msgC.buf[4] = 0x00;
+    msgC.buf[5] = 0x00;
+    msgC.buf[6] = 0x00;
+    msgC.buf[7] = 0x00;
+    V_Bus.write(msgC);
+
+    delay(1000);
+    Serial.println("Commiting data wait 1min, then turn Off PVED valve & restart");
+}
+
+
+//**************************************************************************************
 void Help(){
-  Serial.println("==============================");
   Serial.println("? = Help");
   Serial.println("X = Exit Service Mode");
   Serial.println("0 = Set Brand as Claas");
@@ -107,8 +97,6 @@ void Help(){
   Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("8 = Set Brand as Cat MT Late");
   Serial.println("9 = Set Brand as Cat MT Early");
-  Serial.println("D = Set Brand as Deutz");
-  Serial.println("==============================");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
   Serial.println("Z = Danfoss PVED parameter setup");
@@ -206,14 +194,6 @@ void CatMT_Early() {
     EEPROM.update(70, 9);
     Brand = EEPROM.read(70);
     Serial.println("Brand Set Cat MT Early, Restarting Teensy");
-    delay(1000);
-    SCB_AIRCR = 0x05FA0004; //Teensy Reset
-    Serial.println(" ");
-}
-void Deutz() {
-    EEPROM.update(70, 10);
-    Brand = EEPROM.read(70);
-    Serial.println("Brand Set Deutza, Restarting Teensy");
     delay(1000);
     SCB_AIRCR = 0x05FA0004; //Teensy Reset
     Serial.println(" ");
@@ -763,47 +743,60 @@ void setupPVED() {
 
 //**************************************************************************************
 
-void WriteParameters()
+void Service_Tool (void) 
 {
-    // Change parameter 64007 to 30(Dec) 1E(Hex)
-    CAN_message_t msgP;
-    msgP.id = 0x98EF13FD;
-    msgP.flags.extended = true;
-    msgP.len = 8;
-    msgP.buf[0] = 0x0F;
-    msgP.buf[1] = 0xA2;
-    msgP.buf[2] = 0x07;
-    msgP.buf[3] = 0xFA;
-    msgP.buf[4] = 0x1E;
-    msgP.buf[5] = 0x00;
-    msgP.buf[6] = 0x00;
-    msgP.buf[7] = 0x00;
-    V_Bus.write(msgP);
-    
-    delay(100);
-    Serial.println("Sent parameter change request, make sure you send commit command next");
+  Serial.println("\r\nAgOpenGPS CANBUS Service Tool Mode:");
+  Help();
+  
+  while (Service == 1) 
+  {
+  
+      if (Serial.available())   // Read Data From Serail Monitor 
+      {    
+        byte b = Serial.read();
+        if ( b == '?') Help();          
+        else if ( b == 'X') Service = 0; //Exit Service Mode
+        else if ( b == '0') Claas();
+        else if ( b == '1') Valtra();
+        else if ( b == '2') CNH();
+        else if ( b == '3') Fendt();
+        else if ( b == '4') JCB();
+        else if ( b == '5') FendtOne();
+        else if ( b == '6') Lindner();
+        else if ( b == '7') AgOpenGPS();
+        else if ( b == '8') CatMT();
+        else if ( b == '9') CatMT_Early();
+        else if ( b == 'R') ReadCAN();
+        else if ( b == 'S') StopCAN();
+        else if ( b == 'Z') setupPVED();
+        else if ( b == 'f') gpsModeOne();
+        else if ( b == 'F') gpsModeTwo();
+        else if ( b == 'p') gpsModeThree();
+        else if ( b == 'P') gpsModeFour();
+
+        else
+        {
+          Serial.println("No command, send ? for help");
+          Serial.println(" ");
+          delay(50);
+        }
+
+        while (Serial.available())
+        {
+        Serial.read();                //Clear the serial buffer
+        }
+      }
+
+      if (tempChecker > 10000)
+      {
+          tempChecker = 0;
+          float temp = tempmonGetTemp();
+          Serial.print(temp, 2);
+          Serial.println(" degC CPU Temp");
+      }
+
+  }
 }
 
-//**************************************************************************************
 
-void Commit()
-{
-    // Commit parameters to PVED-CL  
-    CAN_message_t msgC;
-    msgC.id = 0x98EF13FD;
-    msgC.flags.extended = true;
-    msgC.len = 8;
-    msgC.buf[0] = 0x0F;
-    msgC.buf[1] = 0xA6;
-    msgC.buf[2] = 0x5A;
-    msgC.buf[3] = 0x00;
-    msgC.buf[4] = 0x00;
-    msgC.buf[5] = 0x00;
-    msgC.buf[6] = 0x00;
-    msgC.buf[7] = 0x00;
-    V_Bus.write(msgC);
-
-    delay(1000);
-    Serial.println("Commiting data wait 1min, then turn Off PVED valve & restart");
-}
-
+#endif
