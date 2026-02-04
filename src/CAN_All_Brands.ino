@@ -177,6 +177,10 @@ void CAN_setup(void)
   {
     K_Bus.setFIFOFilter(0, 0x613, STD); // Fendt Arm Rest Buttons
   }
+  if (Brand == 1)
+  {
+    K_Bus.setFIFOFilter(0, 0x45a, STD);
+  }
   if (Brand == 5)
   {
     K_Bus.setFIFOFilter(0, 0xCFFD899, EXT); // FendtOne Engage
@@ -435,7 +439,7 @@ void VBus_Receive()
         {
           engageCAN = bitRead(VBusReceiveData.buf[0], 2);
           Time = millis();
-          //digitalWrite(engageLED, HIGH);
+          // digitalWrite(engageLED, HIGH);
           relayTime = ((millis() + 1000));
           //*****Turn saftey valve ON**********
           if (engageCAN == 1)
@@ -460,6 +464,19 @@ void VBus_Receive()
       {
         estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]); // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve
         steeringValveReady = (VBusReceiveData.buf[2]);
+        // Massey S test code
+        static uint8_t lastValveState = steeringValveReady;
+        if (steeringValveReady == 80 && lastValveState == 20)
+        {
+          steeringValveReady = 20;
+          intendToSteer = 0;
+          VBus_Send();
+          intendToSteer = 1;
+        }
+        else
+        {
+          lastValveState = steeringValveReady;
+        }
       }
 
       //**Engage Message**
@@ -827,7 +844,16 @@ void K_Receive()
   if (K_Bus.read(KBusReceiveData))
   {
     // Put code here to sort a message out from K-Bus if needed
-
+    if (Brand == 1)
+    {
+      if (KBusReceiveData.id == 0x45a && KBusReceiveData.buf[1] == 0x04) //**Fendt Arm Rest Buttons**
+      {
+        Time = millis();
+        // digitalWrite(engageLED, HIGH);
+        engageCAN = 1;
+        relayTime = ((millis() + 1000));
+      }
+    }
     if (Brand == 3)
     {
       if (KBusReceiveData.id == 0x613) //**Fendt Arm Rest Buttons**

@@ -592,7 +592,6 @@ void loop()
 
     // 1 PCB Button pressed?
     reading = digitalRead(STEERSW_PIN);
-    Serial.println("Reading " + String(reading));
     // 2 Has tablet button been pressed?
     if (previousStatus != guidanceStatus)
     {
