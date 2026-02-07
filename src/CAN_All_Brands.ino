@@ -1,6 +1,7 @@
 #ifndef CAN_All_Brands_ino
 #define CAN_All_Brands_ino
 #include <Arduino.h>
+#include "_Utils.ino"
 //  !! Set Brand via Service Tool (Serial Monitor) !!
 //  0 = Claas (1E/30 Navagation Controller, 13/19 Steering Controller) - See Claas Notes on Service Tool Page
 //  1 = Valtra, Massey Fergerson (Standard Danfoss ISO 1C/28 Navagation Controller, 13/19 Steering Controller)
@@ -32,7 +33,7 @@ void CAN_setup(void)
   if (Brand == 1)
   {
     V_Bus.setFIFOFilter(0, 0x0CAC1C13, EXT); // Valtra Curve Data & Valve State Message
-    V_Bus.setFIFOFilter(1, 0x18EF1C32, EXT); // Valtra Engage Message
+    V_Bus.setFIFOFilter(1, 0x18EF1C32, EXT); // Valtra Engage Message  (possibly ID 00 instead of 32)
     V_Bus.setFIFOFilter(2, 0x18EF1CFC, EXT); // Mccormick Engage Message
     V_Bus.setFIFOFilter(3, 0x18EF1C00, EXT); // MF Engage Message
     V_Bus.setFIFOFilter(4, 0x18FF8306, EXT); // Mccormick Joystick
@@ -52,7 +53,8 @@ void CAN_setup(void)
   if (Brand == 4)
   {
     V_Bus.setFIFOFilter(0, 0x0CACAB13, EXT); // JCB Curve Data & Valve State Message
-    V_Bus.setFIFOFilter(1, 0x18EFAB27, EXT); // JCB engage message
+    V_Bus.setFIFOFilter(1, 0x0CEFAB27, EXT); // JCB engage message icon
+    V_Bus.setFIFOFilter(2, 0x18EFAB27, EXT); // JCB engage message
     CANBUS_ModuleID = 0xAB;
   }
   if (Brand == 5)
@@ -82,14 +84,19 @@ void CAN_setup(void)
     V_Bus.setFIFOFilter(0, 0x0CEFFF76, EXT); // Cat MTxxx Curve data, valve state and engage messages
     CANBUS_ModuleID = 0x2C;
   }
+  if (Brand == 10)
+  {
+    V_Bus.setFIFOFilter(0, 0x0CAC1C13, EXT); // Deutz Curve Data & Valve State Message
+    CANBUS_ModuleID = 0x1C;
+  }
 
   // Claim V_Bus Address
-  if (Brand >= 0 && Brand <= 9)
+  if (Brand >= 0 && Brand <= 10)
   {
     CAN_message_t msgV;
     if (Brand == 0)
       msgV.id = 0x18EEFF1E; // Claas
-    else if (Brand == 1)
+    else if (Brand == 1 || Brand == 10)
       msgV.id = 0x18EEFF1C; // Massey, Valtra, ETC
     else if (Brand == 2)
       msgV.id = 0x18EEFFAA; // Case, Hew Holland
@@ -173,24 +180,30 @@ void CAN_setup(void)
   K_Bus.enableFIFO();
   K_Bus.setFIFOFilter(REJECT_ALL);
   // Put filters into here to let them through (All blocked by above line)
-  if (Brand == 3)
-  {
-    K_Bus.setFIFOFilter(0, 0x613, STD); // Fendt Arm Rest Buttons
-  }
   if (Brand == 1)
   {
     K_Bus.setFIFOFilter(0, 0x45a, STD);
-  }
-  if (Brand == 5)
-  {
-    K_Bus.setFIFOFilter(0, 0xCFFD899, EXT); // FendtOne Engage
+    K_Bus.setFIFOFilter(1, 0xCFF2621, EXT);
+    K_Bus.setFIFOFilter(2, 0x18FE4523, EXT); // MF Rear Hitch Infomation
   }
   if (Brand == 2)
   {
     K_Bus.setFIFOFilter(0, 0x14FF7706, EXT); // CaseIH Engage Message
     K_Bus.setFIFOFilter(1, 0x18FE4523, EXT); // CaseIH Rear Hitch Infomation
   }
-
+  if (Brand == 3)
+  {
+    K_Bus.setFIFOFilter(0, 0x613, STD); // Fendt Arm Rest Buttons
+  }
+  if (Brand == 5)
+  {
+    K_Bus.setFIFOFilter(0, 0xCFFD899, EXT); // FendtOne Engage
+  }
+  if (Brand == 10)
+  {
+    K_Bus.setFIFOFilter(0, 0x18FF5806, EXT); // Deutz Engage Message
+    K_Bus.setFIFOFilter(1, 0x8FF6206, EXT);  // Deutz joystick
+  }
   delay(300);
 
 } // End CAN SETUP
@@ -225,9 +238,10 @@ void VBus_Send()
     VBusSendData.len = 8;
     VBusSendData.buf[0] = lowByte(setCurve);
     VBusSendData.buf[1] = highByte(setCurve);
-    if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10)
-      VBusSendData.buf[2] = 253;
-    else
+    if (intendToSteer == 1)
+      VBusSendData.buf[2] = 253; // from mf8s test
+    // if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10) VBusSendData.buf[2] = 253;
+    if (intendToSteer == 0)
       VBusSendData.buf[2] = 252;
     VBusSendData.buf[3] = 0;
     VBusSendData.buf[4] = 0;
@@ -417,7 +431,6 @@ void VBus_Receive()
         {
           engageCAN = bitRead(VBusReceiveData.buf[0], 2);
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           relayTime = ((millis() + 1000));
           //*****Turn saftey valve ON**********
           if (engageCAN == 1)
@@ -428,7 +441,6 @@ void VBus_Receive()
         {
           engageCAN = bitRead(VBusReceiveData.buf[1], 0);
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           relayTime = ((millis() + 1000));
           //*****Turn saftey valve ON**********
           if (engageCAN == 1)
@@ -439,7 +451,6 @@ void VBus_Receive()
         {
           engageCAN = bitRead(VBusReceiveData.buf[0], 2);
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           relayTime = ((millis() + 1000));
           //*****Turn saftey valve ON**********
           if (engageCAN == 1)
@@ -464,10 +475,12 @@ void VBus_Receive()
       {
         estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]); // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve
         steeringValveReady = (VBusReceiveData.buf[2]);
-        // Massey S test code
+        // Massey 7S and  8S test code
         static uint8_t lastValveState = steeringValveReady;
-        if (steeringValveReady == 80 && lastValveState == 20)
+        if (steeringValveReady == 80 && lastValveState == 20) // 80 is 0x50, as seen in the log on a reset/disconnect
         {
+          Serial.println("MF8S Steering Valve Fault Detected - Resetting Steering Controller");
+          sendHardwareMessage("MF8S Steering Valve Fault - Resetting Steering Controller", 3);
           steeringValveReady = 20;
           intendToSteer = 0;
           VBus_Send();
@@ -485,7 +498,6 @@ void VBus_Receive()
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
@@ -496,7 +508,6 @@ void VBus_Receive()
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[3]) == 255)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
@@ -506,7 +517,6 @@ void VBus_Receive()
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
@@ -516,7 +526,6 @@ void VBus_Receive()
         if (bitRead(VBusReceiveData.buf[5], 3) == 1)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
@@ -539,7 +548,6 @@ void VBus_Receive()
         if (bitRead(VBusReceiveData.buf[0], 2))
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
@@ -571,18 +579,16 @@ void VBus_Receive()
         steeringValveReady = (VBusReceiveData.buf[2]);
       }
 
-      //**Engage Message**
-      if (VBusReceiveData.id == 0x18EFAB27)
+      //**Engage Message** ICON
+      if (VBusReceiveData.id == 0x0CEFAB27 || VBusReceiveData.id == 0x18EFAB27) // 0x0CEFAB27 Icon, 0x18EFAB27 Pre Icon
       {
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
       }
-
     } // End Brand == 4
 
     else if (Brand == 5)
@@ -615,7 +621,6 @@ void VBus_Receive()
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
@@ -672,7 +677,6 @@ void VBus_Receive()
         {
           if (VBusReceiveData.buf[2] == 0x01)
           {
-            // digitalWrite(engageLED, HIGH);
             engageCAN = 1;
             relayTime = ((millis() + 1000));
           }
@@ -716,7 +720,6 @@ void VBus_Receive()
         {
           if (VBusReceiveData.buf[2] == 0x01)
           {
-            // digitalWrite(engageLED, HIGH);
             engageCAN = 1;
             relayTime = ((millis() + 1000));
           }
@@ -725,7 +728,16 @@ void VBus_Receive()
 
     } // End Brand == 9
 
-    if (ShowCANData == 1)
+    else if (Brand == 10)
+    { // Deutz
+      if (VBusReceiveData.id == 0x0CAC1C13)
+      {
+        estCurve = ((VBusReceiveData.buf[1] << 8) + VBusReceiveData.buf[0]); // CAN Buf[1]*256 + CAN Buf[0] = CAN Est Curve
+        steeringValveReady = (VBusReceiveData.buf[2]);
+      }
+    }
+
+    if (ShowCANData == 2)
     {
       Serial.print(Time);
       Serial.print(", V-Bus");
@@ -753,6 +765,9 @@ void VBus_Receive()
 //---Receive ISO_Bus message
 void ISO_Receive()
 {
+  if (Brand == 7 || Brand == 2 || Brand == 1) // Case, MF and AgOpenGPS all send rear hitch data on K-Bus instead of ISO-Bus so ignore this message for those brands
+    return;
+
   CAN_message_t ISOBusReceiveData;
   if (ISO_Bus.read(ISOBusReceiveData))
   {
@@ -769,10 +784,9 @@ void ISO_Receive()
     //**Work Message**
     if (PGN == 65093) // Rear hitch data
     {
-      ISORearHitch = (ISOBusReceiveData.buf[0]);
-      if (Brand != 7)
-        pressureReading = ISORearHitch;
-      if (steerConfig.PressureSensor == 1 && ISORearHitch < steerConfig.PulseCountMax && Brand != 7)
+      RearHitch = (ISOBusReceiveData.buf[0]);
+      pressureReading = RearHitch;
+      if (steerConfig.PressureSensor == 1 && RearHitch < steerConfig.PulseCountMax)
         workCAN = 1;
       else
         workCAN = 0;
@@ -819,8 +833,8 @@ void ISO_Receive()
 
       if (PGN == 44032)
         Serial.print("= Curvature Data");
-      else if (PGN == 65093)
-        Serial.print("= Rear Hitch Data");
+      if (PGN == 65093)
+        Serial.println("= Rear Hitch Data");
       else if (PGN == 65096)
         Serial.print("= Wheel Speed, Direction, Distance");
       else if (PGN == 65267)
@@ -832,7 +846,6 @@ void ISO_Receive()
       else if (PGN == 129029)
         Serial.print("= GPS Info (GGA)");
 
-      Serial.println("");
     } // End Show Data
   }
 }
@@ -846,14 +859,67 @@ void K_Receive()
     // Put code here to sort a message out from K-Bus if needed
     if (Brand == 1)
     {
-      if (KBusReceiveData.id == 0x45a && KBusReceiveData.buf[1] == 0x04) //**Fendt Arm Rest Buttons**
+      if (KBusReceiveData.id == 0x45a && KBusReceiveData.buf[1] & 0x04) // Massey 6/7/8000 series headland button
       {
         Time = millis();
-        // digitalWrite(engageLED, HIGH);
         engageCAN = 1;
         relayTime = ((millis() + 1000));
       }
+      if (KBusReceiveData.id == 0xCFF2621) //**MF 7S  / MF 8s Engage Message**
+      {
+        if ((KBusReceiveData.buf[3]) & 4) // This should be a single bit comparison typically, was "== 0xF4" originally
+        {
+          Time = millis();
+          engageCAN = 1;
+          relayTime = ((millis() + 1000));
+          Serial.print("MF Engage Detected via CAN, buf[3]: ");
+          Serial.println(KBusReceiveData.buf[3], HEX);
+          sendHardwareMessage("Engaged via autosteer button", 3);
+        }
+      }
+      if (KBusReceiveData.id == 0x18FE4523)
+      {
+        Serial.println("MF Hitch Data Detected via CAN value: " + String(KBusReceiveData.buf[0]));
+        RearHitch = (KBusReceiveData.buf[0]);
+        pressureReading = RearHitch;
+        if (steerConfig.PressureSensor == 1 && RearHitch < steerConfig.PulseCountMax)
+          workCAN = 1;
+        else
+          workCAN = 0;
+      }
     }
+
+    // CaseIH info from /buched Emmanuel
+    if (Brand == 2)
+    {
+      if (KBusReceiveData.id == 0x14FF7706) //**case IH Engage Message**
+      {
+        if ((KBusReceiveData.buf[0]) == 130 && (KBusReceiveData.buf[1]) == 1)
+        {
+          Time = millis();
+          engageCAN = 1;
+          relayTime = ((millis() + 1000));
+        }
+
+        if ((KBusReceiveData.buf[0]) == 178 && (KBusReceiveData.buf[1]) == 4)
+        {
+          Time = millis();
+          engageCAN = 1;
+          relayTime = ((millis() + 1000));
+        }
+      }
+
+      if (KBusReceiveData.id == 0x18FE4523)
+      {
+        RearHitch = (KBusReceiveData.buf[0]);
+        pressureReading = RearHitch;
+        if (steerConfig.PressureSensor == 1 && RearHitch < steerConfig.PulseCountMax)
+          workCAN = 1;
+        else
+          workCAN = 0;
+      }
+    }
+
     if (Brand == 3)
     {
       if (KBusReceiveData.id == 0x613) //**Fendt Arm Rest Buttons**
@@ -867,7 +933,6 @@ void K_Receive()
           if (KBusReceiveData.buf[1] == 0x88 && KBusReceiveData.buf[4] == 0x80) // Fendt Auto Steer Go
           {
             Time = millis();
-            // digitalWrite(engageLED, HIGH);
             engageCAN = 1;
             relayTime = ((millis() + 1000));
           }
@@ -882,47 +947,36 @@ void K_Receive()
         if ((KBusReceiveData.buf[3]) == 0xF6)
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
       }
     }
 
-    // CaseIH info from /buched Emmanuel
-    if (Brand == 2)
+    if (Brand == 10)
     {
-      if (KBusReceiveData.id == 0x14FF7706) //**case IH Engage Message**
+      if (KBusReceiveData.id == 0x18FF5806) //**Deutz Engage Message**
       {
-        if ((KBusReceiveData.buf[0]) == 130 && (KBusReceiveData.buf[1]) == 1)
+        if (KBusReceiveData.buf[4] & 0x01) // Deutz Engage bit 4th position 01
         {
           Time = millis();
-          // digitalWrite(engageLED, HIGH);
-          engageCAN = 1;
-          relayTime = ((millis() + 1000));
-        }
-
-        if ((KBusReceiveData.buf[0]) == 178 && (KBusReceiveData.buf[1]) == 4)
-        {
-          Time = millis();
-          // digitalWrite(engageLED, HIGH);
           engageCAN = 1;
           relayTime = ((millis() + 1000));
         }
       }
-
-      if (KBusReceiveData.id == 0x18FE4523)
+      if (KBusReceiveData.id == 0x8FF6206) //**Deutz joystick**
       {
-        KBUSRearHitch = (KBusReceiveData.buf[0]);
-        pressureReading = KBUSRearHitch;
-        if (steerConfig.PressureSensor == 1 && KBUSRearHitch < steerConfig.PulseCountMax)
-          workCAN = 1;
-        else
-          workCAN = 0;
+        if (KBusReceiveData.buf[5] & 0x01) // Comfortip Button
+                                           // if (KBusReceiveData.buf[6]&0x01) // RPM 1
+                                           // if (KBusReceiveData.buf[4]&0x40) // RPM 2
+        {
+          Time = millis();
+          engageCAN = 1;
+          relayTime = ((millis() + 1000));
+        }
       }
     }
-
-    if (ShowCANData == 1)
+    if (ShowCANData == 3)
     {
       Serial.print(Time);
       Serial.print(", K-Bus");

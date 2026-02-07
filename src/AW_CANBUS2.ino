@@ -134,8 +134,7 @@ uint32_t Time;               // Time Arduino has been running
 uint32_t relayTime;          // Time to keep "Button Pressed" from CAN Message
 boolean engageCAN = 0;       // Variable for Engage from CAN
 boolean workCAN = 0;         // Variable for Workswitch from CAN
-uint8_t ISORearHitch = 250;  // Variable for hitch height from ISOBUS (0-250 *0.4 = 0-100%)
-uint8_t KBUSRearHitch = 250; // Variable for hitch height from KBUS (0-250 *0.4 = 0-100%) - CaseIH tractor bus
+uint8_t RearHitch = 250;     // Variable for hitch height from ISOBUS (Fendt) or KBus (MF/Case) (0-250 *0.4 = 0-100%)
 boolean Service = 0;         // Variable for Danfoss Service Tool Mode
 boolean ShowCANData = 0;     // Variable for Showing CAN Data
 
@@ -598,8 +597,6 @@ void loop()
       if (guidanceStatus == 1) // Must have changed Off >> On
       {
         Time = millis();
-        // digitalWrite(engageLED, HIGH);
-
         engageCAN = 1;
         relayTime = ((millis() + 1000));
 
@@ -647,8 +644,8 @@ void loop()
     }
 
     switchByte = 0;
-    switchByte |= (1 << 2); // put remote in bit 2
-    switchByte |= (steerSwitch << 1);  // put steerswitch status in bit 1 position
+    switchByte |= (steerSwitch << 2); // follow steerswitch? (Was 1 << 2, or reading the Remote switch previously) put remote in bit 2
+    switchByte |= (steerSwitch << 1); // put steerswitch status in bit 1 position
     switchByte |= workSwitch;
 
     // get steering position
