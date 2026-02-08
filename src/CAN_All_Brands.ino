@@ -243,6 +243,7 @@ void VBus_Send()
     // if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10) VBusSendData.buf[2] = 253;
     if (intendToSteer == 0)
       VBusSendData.buf[2] = 252;
+    Serial.println("Steering Valve State: " + String(intendToSteer, HEX));
     VBusSendData.buf[3] = 0;
     VBusSendData.buf[4] = 0;
     VBusSendData.buf[5] = 0;
@@ -479,8 +480,8 @@ void VBus_Receive()
         static uint8_t lastValveState = steeringValveReady;
         if (steeringValveReady == 80 && lastValveState == 20) // 80 is 0x50, as seen in the log on a reset/disconnect
         {
-          Serial.println("MF8S Steering Valve Fault Detected - Resetting Steering Controller");
-          sendHardwareMessage("MF8S Steering Valve Fault - Resetting Steering Controller", 3);
+          Serial.println("MF8S Steering Valve Fault Detected - Resetting Steering Controller - if you see this a lot and not steering, disable this reset");
+          sendHardwareMessage("Fault -  - if you see this a lot and not steering, disable this reset", 1);
           steeringValveReady = 20;
           intendToSteer = 0;
           VBus_Send();
@@ -497,6 +498,7 @@ void VBus_Receive()
       {
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
         {
+          Serial.println("Valtra Engage Detected");
           Time = millis();
           engageCAN = 1;
           relayTime = ((millis() + 1000));
@@ -507,6 +509,7 @@ void VBus_Receive()
       {
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[3]) == 255)
         {
+          Serial.println("Mccormick Engage Detected");
           Time = millis();
           engageCAN = 1;
           relayTime = ((millis() + 1000));
@@ -516,6 +519,7 @@ void VBus_Receive()
       {
         if ((VBusReceiveData.buf[0]) == 15 && (VBusReceiveData.buf[1]) == 96 && (VBusReceiveData.buf[2]) == 1)
         {
+          Serial.println("MF Engage Detected");
           Time = millis();
           engageCAN = 1;
           relayTime = ((millis() + 1000));
@@ -525,6 +529,7 @@ void VBus_Receive()
       {
         if (bitRead(VBusReceiveData.buf[5], 3) == 1)
         {
+          Serial.println("Mccormick Joystick Engage Detected");
           Time = millis();
           engageCAN = 1;
           relayTime = ((millis() + 1000));
@@ -888,7 +893,6 @@ void K_Receive()
           workCAN = 0;
       }
     }
-
     // CaseIH info from /buched Emmanuel
     if (Brand == 2)
     {
