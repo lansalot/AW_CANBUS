@@ -48,7 +48,7 @@
 
 String inoVersion = ("\r\nAgOpenGPS Tony UDP CANBUS Ver 04.05.2024");
 
-#define useLED
+#define useLED 1
 ////////////////// User Settings /////////////////////////
 
 // How many degrees before decreasing Max PWM
@@ -120,9 +120,6 @@ EthernetUDP NtripUdp;
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_256> K_Bus;   // Tractor / Control Bus
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_256> ISO_Bus; // ISO Bus
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;   // Steering Valve Bus
-
-#define ledPin 5 // Option for LED, CAN Valve Ready To Steer.
-// #define engageLED 24 // Option for LED, to see if Engage message is recived.
 
 uint8_t Brand = 1;              // Variable to set brand via serial monitor.
 uint8_t gpsMode = 1;            // Variable to set GPS mode via serial monitor.
@@ -401,6 +398,9 @@ void setup()
   Serial.print("CPU speed set to: ");
   Serial.println(F_CPU_ACTUAL);
 
+  pinMode(STEER_RELAY_5V, OUTPUT);
+  digitalWrite(STEER_RELAY_5V, LOW);
+
 #ifdef useLED
   pinMode(LED_TEENSY, OUTPUT);
 #endif
@@ -493,12 +493,6 @@ void setup()
 
   //----Teensy 4.1 CANBus--Start---------------------
 
-  // pinMode(ledPin, OUTPUT); // CAN Valve Ready LED
-  // digitalWrite(ledPin, LOW);
-
-  // pinMode(engageLED, OUTPUT); // CAN engage LED
-  // digitalWrite(engageLED, LOW);
-
   Serial.println("\r\nStarting CAN-Bus Ports");
   if (Brand == 0)
     Serial.println("Brand = Claas (Set Via Service Tool)");
@@ -576,16 +570,6 @@ void loop()
       watchdogTimer = WATCHDOG_FORCE_VALUE;
 
     // read all the switches
-
-    // CANBus
-    if (steeringValveReady == 20 || steeringValveReady == 16)
-    {
-      digitalWrite(ledPin, HIGH);
-    }
-    else
-    {
-      digitalWrite(ledPin, LOW);
-    }
 
     // Engage steering via 1 PCB Button or 2 Tablet or 3 CANBUS
 
@@ -745,7 +729,6 @@ void loop()
 
   if ((millis()) > relayTime)
   {
-    // digitalWrite(engageLED, LOW);
     engageCAN = 0;
   }
 
