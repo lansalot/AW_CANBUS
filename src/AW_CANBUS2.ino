@@ -429,7 +429,7 @@ void setup()
   }
   else
   {
-    Serial.println("No fresh data from TM171");
+    Serial.println("No fresh data from TM171 - you have powered it with the jumper, haven't you?????");
   }
 
   EEPROM.get(0, EEread); // read identifier
