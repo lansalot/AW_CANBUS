@@ -243,7 +243,6 @@ void VBus_Send()
     // if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10) VBusSendData.buf[2] = 253;
     if (intendToSteer == 0)
       VBusSendData.buf[2] = 252;
-    Serial.println("Steering Valve State: " + String(intendToSteer, HEX));
     VBusSendData.buf[3] = 0;
     VBusSendData.buf[4] = 0;
     VBusSendData.buf[5] = 0;
