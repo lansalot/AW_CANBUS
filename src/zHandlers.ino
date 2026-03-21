@@ -45,11 +45,158 @@ const char* qosToString(uint8_t qos)
 	default: return "Unknown QoS";
 	}
 }
+
+void CalculateChecksum(void)
+{
+  int16_t sum = 0;
+  int16_t inx = 0;
+  char tmp;
+
+  // The checksum calc starts after '$' and ends before '*'
+  for (inx = 1; inx < 200; inx++)
+  {
+    tmp = nmea[inx];
+
+    // * Indicates end of data and start of checksum
+    if (tmp == '*')
+    {
+      break;
+    }
+
+    sum ^= tmp; // Build checksum
+  }
+
+  byte chk = (sum >> 4);
+  char hex[2] = {asciiHex[chk], 0};
+  strcat(nmea, hex);
+
+  chk = (sum % 16);
+  char hex2[2] = {asciiHex[chk], 0};
+  strcat(nmea, hex2);
+}
+
+
 // If odd characters showed up.
 void errorHandler()
 {
   // nothing at the moment
 }
+
+
+void imuHandler()
+{
+  int16_t temp = 0;
+  if (useTM171)
+  {
+    float angVel;
+
+    // Fill rest of Panda Sentence - Heading
+    itoa(YawV.fValue * 10, imuHeading, 10);
+
+    // hard-code orientation as TM171 should point forward
+    // the pitch x100
+    itoa(PitchV.fValue * 10, imuPitch, 10);
+    // the roll x100
+    itoa(RollV.fValue * 10, imuRoll, 10);
+
+    // Serial.print("TM171 Pitch: ");
+    // Serial.print(imuPitch);
+    // Serial.print(" Roll: ");
+    // Serial.println(imuRoll);
+    itoa(0, imuYawRate, 10);
+  }
+  else if (useBNO08x)
+  {
+    // BNO is reading in its own timer
+    //  Fill rest of Panda Sentence - Heading
+    temp = yaw;
+    itoa(temp, imuHeading, 10);
+
+    // the pitch x10
+    temp = (int16_t)pitch;
+    itoa(temp, imuPitch, 10);
+
+    // the roll x10
+    temp = (int16_t)roll;
+    itoa(temp, imuRoll, 10);
+
+    // YawRate - 0 for now
+    itoa(0, imuYawRate, 10);
+  }
+}
+
+void BuildNmea(void)
+{
+  strcpy(nmea, "");
+
+  strcat(nmea, "$PANDA,");
+
+  strcat(nmea, fixTime);
+  strcat(nmea, ",");
+
+  strcat(nmea, latitude);
+  strcat(nmea, ",");
+
+  strcat(nmea, latNS);
+  strcat(nmea, ",");
+
+  strcat(nmea, longitude);
+  strcat(nmea, ",");
+
+  strcat(nmea, lonEW);
+  strcat(nmea, ",");
+
+  // 6
+  strcat(nmea, fixQuality);
+  strcat(nmea, ",");
+
+  strcat(nmea, numSats);
+  strcat(nmea, ",");
+
+  strcat(nmea, HDOP);
+  strcat(nmea, ",");
+
+  strcat(nmea, altitude);
+  strcat(nmea, ",");
+
+  // 10
+  strcat(nmea, ageDGPS);
+  strcat(nmea, ",");
+
+  // 11
+  strcat(nmea, speedKnots);
+  strcat(nmea, ",");
+
+  // 12
+  strcat(nmea, imuHeading);
+  strcat(nmea, ",");
+
+  // 13
+  strcat(nmea, imuRoll);
+  strcat(nmea, ",");
+
+  // 14
+  strcat(nmea, imuPitch);
+  strcat(nmea, ",");
+
+  // 15
+  strcat(nmea, imuYawRate);
+
+  strcat(nmea, "*");
+
+  CalculateChecksum();
+
+  strcat(nmea, "\r\n");
+  elapsedGPSLED = 0;
+
+  // off to AOG
+  int len = strlen(nmea);
+  Udp.beginPacket(ipDestination, 9999);
+  Udp.write(nmea, len);
+  Udp.endPacket();
+}
+
+
 
 void GGA_Handler() // Rec'd GGA
 {
@@ -168,148 +315,6 @@ void VTG_Handler()
 
 void ZDA_Handler()
 {
-}
-
-void imuHandler()
-{
-  int16_t temp = 0;
-  if (useTM171)
-  {
-    float angVel;
-
-    // Fill rest of Panda Sentence - Heading
-    itoa(YawV.fValue * 10, imuHeading, 10);
-
-    // hard-code orientation as TM171 should point forward
-    // the pitch x100
-    itoa(PitchV.fValue * 10, imuPitch, 10);
-    // the roll x100
-    itoa(RollV.fValue * 10, imuRoll, 10);
-
-    // Serial.print("TM171 Pitch: ");
-    // Serial.print(imuPitch);
-    // Serial.print(" Roll: ");
-    // Serial.println(imuRoll);
-    itoa(0, imuYawRate, 10);
-  }
-  else if (useBNO08x)
-  {
-    // BNO is reading in its own timer
-    //  Fill rest of Panda Sentence - Heading
-    temp = yaw;
-    itoa(temp, imuHeading, 10);
-
-    // the pitch x10
-    temp = (int16_t)pitch;
-    itoa(temp, imuPitch, 10);
-
-    // the roll x10
-    temp = (int16_t)roll;
-    itoa(temp, imuRoll, 10);
-
-    // YawRate - 0 for now
-    itoa(0, imuYawRate, 10);
-  }
-}
-
-void BuildNmea(void)
-{
-  strcpy(nmea, "");
-
-  strcat(nmea, "$PANDA,");
-
-  strcat(nmea, fixTime);
-  strcat(nmea, ",");
-
-  strcat(nmea, latitude);
-  strcat(nmea, ",");
-
-  strcat(nmea, latNS);
-  strcat(nmea, ",");
-
-  strcat(nmea, longitude);
-  strcat(nmea, ",");
-
-  strcat(nmea, lonEW);
-  strcat(nmea, ",");
-
-  // 6
-  strcat(nmea, fixQuality);
-  strcat(nmea, ",");
-
-  strcat(nmea, numSats);
-  strcat(nmea, ",");
-
-  strcat(nmea, HDOP);
-  strcat(nmea, ",");
-
-  strcat(nmea, altitude);
-  strcat(nmea, ",");
-
-  // 10
-  strcat(nmea, ageDGPS);
-  strcat(nmea, ",");
-
-  // 11
-  strcat(nmea, speedKnots);
-  strcat(nmea, ",");
-
-  // 12
-  strcat(nmea, imuHeading);
-  strcat(nmea, ",");
-
-  // 13
-  strcat(nmea, imuRoll);
-  strcat(nmea, ",");
-
-  // 14
-  strcat(nmea, imuPitch);
-  strcat(nmea, ",");
-
-  // 15
-  strcat(nmea, imuYawRate);
-
-  strcat(nmea, "*");
-
-  CalculateChecksum();
-
-  strcat(nmea, "\r\n");
-  elapsedGPSLED = 0;
-
-  // off to AOG
-  int len = strlen(nmea);
-  Udp.beginPacket(ipDestination, 9999);
-  Udp.write(nmea, len);
-  Udp.endPacket();
-}
-
-void CalculateChecksum(void)
-{
-  int16_t sum = 0;
-  int16_t inx = 0;
-  char tmp;
-
-  // The checksum calc starts after '$' and ends before '*'
-  for (inx = 1; inx < 200; inx++)
-  {
-    tmp = nmea[inx];
-
-    // * Indicates end of data and start of checksum
-    if (tmp == '*')
-    {
-      break;
-    }
-
-    sum ^= tmp; // Build checksum
-  }
-
-  byte chk = (sum >> 4);
-  char hex[2] = {asciiHex[chk], 0};
-  strcat(nmea, hex);
-
-  chk = (sum % 16);
-  char hex2[2] = {asciiHex[chk], 0};
-  strcat(nmea, hex2);
 }
 
 /*

@@ -1,3 +1,6 @@
+#ifndef AUTOSTEERPID_H
+#define AUTOSTEERPID_H
+
 void calcSteeringPID(void)
 {
   // Proportional only
@@ -60,10 +63,7 @@ void motorDrive(void)
     setCurve = (setCurve - pwmDrive);
 
   // Cytron MD30C Driver Dir + PWM Signal
-  if (pwmDrive >= 0)
-  {
-  }
-  else
+  if (pwmDrive < 0)
   {
     pwmDrive = -1 * pwmDrive;
   }
@@ -71,3 +71,4 @@ void motorDrive(void)
   // write out the 0 to 255 value
   pwmDisplay = pwmDrive;
 }
+#endif

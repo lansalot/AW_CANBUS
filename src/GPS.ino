@@ -1,7 +1,7 @@
 #ifndef GPS_H
 #define GPS_H
 #include <Arduino.h>
-
+#include "zHandlers.ino"
 #define GPS Serial3
 char rxbuffer[512]; // Extra serial rx buffer
 char txbuffer[512]; // Extra serial tx buffer
@@ -17,6 +17,20 @@ elapsedMillis IMU_LastReadTime = 0;
 
 
 int test = 0;
+
+void clearBufferArray()
+{
+  /*
+  for (int i=0; i<count; i++)
+  {
+    nmeaBuffer[i]=NULL;
+    stringComplete = false;
+  }
+  */
+
+  strcpy(nmeaBuffer, "");
+  stringComplete = false;
+}
 
 //**************************************************************
 
@@ -170,20 +184,6 @@ void Forward_Ntrip()
   }
 }
 
-//-------------------------------------------------------------------------------------------------
 
-void clearBufferArray()
-{
-  /*
-  for (int i=0; i<count; i++)
-  {
-    nmeaBuffer[i]=NULL;
-    stringComplete = false;
-  }
-  */
-
-  strcpy(nmeaBuffer, "");
-  stringComplete = false;
-}
 
 #endif
