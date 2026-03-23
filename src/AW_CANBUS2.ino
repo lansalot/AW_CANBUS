@@ -64,6 +64,8 @@ String inoVersion = ("\r\nAndy's board, CANBUS/TM171 INO");
 
 //--------------------------- Switch Input Pins ------------------------
 #define STEERSW_PIN 6 // PD6
+#define REMOTE_PIN 8  // PB0
+#define WORKSW_PIN 7  // PD7
 
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
@@ -243,7 +245,7 @@ uint8_t relay = 0, relayHi = 0, uTurn = 0;
 uint8_t tram = 0;
 
 // Switches
-uint8_t workSwitch = 0, steerSwitch = 1, switchByte = 0;
+uint8_t remoteSwitch = 0, workSwitch = 0, steerSwitch = 1, switchByte = 0;
 
 // On Off
 uint8_t guidanceStatus = 0;
@@ -347,7 +349,7 @@ bool useTM171 = false;
 // error on next line re "error 't' does not name a type? This line should be as one
 // AUTOFORMAT WILL BREAK THIS
 // template <typename T> T multiMap(T value, T *_in, T *_out, uint8_t size)
-template <typename T> T multiMap(T value, T *_in, T *_out, uint8_t size)
+template <typename T>T multiMap(T value, T *_in, T *_out, uint8_t size)
 {
   // take care the value is within range
   // value = constrain(value, _in[0], _in[size-1]);
@@ -542,8 +544,10 @@ void setup()
   Serial.print(inoVersion);
   Serial.println("\r\nSetup complete, waiting for AgOpenGPS");
   Serial.println("\r\nTo Start AgOpenGPS CANBUS Service Tool Enter 'S'");
-#ifdef useLED
   pinMode(STEERSW_PIN, INPUT_PULLUP);
+  pinMode(WORKSW_PIN, INPUT_PULLUP);
+  pinMode(REMOTE_PIN, INPUT_PULLUP);
+#ifdef useLED
   pinMode(LED_IMU, OUTPUT);
   digitalWrite(LED_IMU, LOW);
   pinMode(LED_GPS, OUTPUT);
@@ -629,11 +633,12 @@ void loop()
       currentState = 1;
       previous = HIGH;
     }
-
+    remoteSwitch = digitalRead(REMOTE_PIN); //read auto steer enable switch open = 0n closed = Off
     switchByte = 0;
-    switchByte |= (steerSwitch << 2); // follow steerswitch? (Was 1 << 2, or reading the Remote switch previously) put remote in bit 2
-    switchByte |= (steerSwitch << 1); // put steerswitch status in bit 1 position
-    switchByte |= workSwitch;
+    switchByte |= (remoteSwitch << 2);  //put remote in bit 2
+    switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
+    switchByte |= workSwitch;   
+    Serial.println("Steer Switch: " + String(steerSwitch) + " Work Switch: " + String(workSwitch) + " Switch Byte: " + String(switchByte));
 
     // get steering position
 
@@ -645,7 +650,6 @@ void loop()
     {
       if (intendToSteer == 0)
         setCurve = estCurve; // Not steering so setCurve = estCurve
-
       steeringPosition = (setCurve - 32128 + steerSettings.wasOffset);
       if (Brand == 3)
         steerAngleActual = (float)(steeringPosition) / (steerSettings.steerSensorCounts * 10); // Fendt Only
@@ -654,7 +658,8 @@ void loop()
       else
         steerAngleActual = (float)(steeringPosition) / steerSettings.steerSensorCounts;
     }
-
+    // Serial.print("Steering Angle Actual: ");
+    // Serial.println(steerAngleActual);
     // Ackerman fix
     if (steerAngleActual < 0)
       steerAngleActual = (steerAngleActual * steerSettings.AckermanFix);
@@ -791,4 +796,3 @@ void loop()
 } // end of main loop
 
 //********************************************************************************
-
