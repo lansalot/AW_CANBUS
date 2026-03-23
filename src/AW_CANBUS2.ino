@@ -48,7 +48,7 @@
 
 String inoVersion = ("\r\nAndy's board, CANBUS/TM171 INO");
 
-// #define useLED 1
+#define useLED 1
 ////////////////// User Settings /////////////////////////
 
 // How many degrees before decreasing Max PWM
@@ -577,7 +577,9 @@ void loop()
       watchdogTimer = WATCHDOG_FORCE_VALUE;
 
     // read all the switches
-
+    workSwitch = digitalRead(WORKSW_PIN);     // read work switch (PCB pin)
+    if (workCAN == 1) workSwitch = 0;         // If CAN workswitch is on, set workSwitch ON
+      
     // Engage steering via 1 PCB Button or 2 Tablet or 3 CANBUS
 
     // 1 PCB Button pressed?
@@ -638,7 +640,6 @@ void loop()
     switchByte |= (remoteSwitch << 2);  //put remote in bit 2
     switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
     switchByte |= workSwitch;   
-    Serial.println("Steer Switch: " + String(steerSwitch) + " Work Switch: " + String(workSwitch) + " Switch Byte: " + String(switchByte));
 
     // get steering position
 

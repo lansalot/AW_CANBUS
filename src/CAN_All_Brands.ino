@@ -298,10 +298,8 @@ void VBus_Send()
     VBusSendData.len = 8;
     VBusSendData.buf[0] = lowByte(setCurve);
     VBusSendData.buf[1] = highByte(setCurve);
-    if (intendToSteer == 1)
-      VBusSendData.buf[2] = 253;
-    if (intendToSteer == 0)
-      VBusSendData.buf[2] = 252;
+	if (intendToSteer == 1)VBusSendData.buf[2] = 253;
+	if (intendToSteer == 0)VBusSendData.buf[2] = 252;
     VBusSendData.buf[3] = 255;
     VBusSendData.buf[4] = 255;
     VBusSendData.buf[5] = 255;
@@ -414,7 +412,6 @@ void VBus_Receive()
   CAN_message_t VBusReceiveData;
   if (V_Bus.read(VBusReceiveData))
   {
-
     if (Brand == 0)
     {
       //**Current Wheel Angle & Valve State**
@@ -741,7 +738,7 @@ void VBus_Receive()
       }
     }
 
-    if (ShowCANData == 2)
+    if (ShowCANData == 1)
     {
       Serial.print(Time);
       Serial.print(", V-Bus");
@@ -760,7 +757,7 @@ void VBus_Receive()
         Serial.print(", ");
       }
 
-      Serial.println("");
+      Serial.println("\n");
     } // End Show Data
 
   } // End if message
