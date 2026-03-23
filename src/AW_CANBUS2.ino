@@ -349,7 +349,7 @@ bool useTM171 = false;
 // error on next line re "error 't' does not name a type? This line should be as one
 // AUTOFORMAT WILL BREAK THIS
 // template <typename T> T multiMap(T value, T *_in, T *_out, uint8_t size)
-template <typename T>T multiMap(T value, T *_in, T *_out, uint8_t size)
+template <typename T> T multiMap(T value, T *_in, T *_out, uint8_t size)
 {
   // take care the value is within range
   // value = constrain(value, _in[0], _in[size-1]);
@@ -398,7 +398,7 @@ void ledBlinkGPSISR()
 
 void setup()
 {
-  delay(500);               // Small delay so serial can monitor start up
+  delay(1000);              // Small delay so serial can monitor start up
   set_arm_clock(450000000); // Set CPU speed to 450mhz
   Serial.print("CPU speed set to: ");
   Serial.println(F_CPU_ACTUAL);
@@ -419,22 +419,58 @@ void setup()
   ledGPSTimer.begin(ledBlinkGPSISR, 500000); // 100us interval
 #endif
 
-  Serial.println("Giving it some time for TM171 to stabilise (if present)");
-  delay(2000);
-  Serial.println("Checking for TM171");
-  TM171setup();
-  delay(1000);
+  // Check BNO08x IMU
+  uint8_t error;
+  Serial.println("Checking for BNO08x IMU");
+  Wire.begin();
+  Wire.beginTransmission(bno08xAddress);
+  error = Wire.endTransmission();
 
-  TM171process();
-  if (TM171lastData <= 80)
+  if (error == 0)
   {
-    Serial.println("Received data from TM171");
-    imuHandler();
-    useTM171 = true;
+    Serial.println("Error = 0");
+    Serial.print("BNO08X ADDRESs: 0x");
+    Serial.println(bno08xAddress, HEX);
+    Serial.println("BNO08X Ok.");
+
+    // Initialize BNO080 lib
+    if (bno08x.begin(bno08xAddress))
+    {
+      Wire.setClock(400000); // Increase I2C data rate to 400kHz
+
+      delay(300);
+
+      // Use GameRotationVector
+      bno08x.enableGameRotationVector(GYRO_LOOP_TIME);
+
+      useBNO08x = true;
+    }
+    else
+    {
+      Serial.println("BNO08x not detected at given I2C address.");
+    }
   }
   else
   {
-    Serial.println("No fresh data from TM171 - you have powered it with the jumper, haven't you?????");
+    Serial.println("Error = " + String(error));
+    Serial.println("i2c BNO08x not Connected or Found");
+    Serial.println("Giving it some time for TM171 to stabilise (if present)");
+    delay(2000);
+    Serial.println("Checking for TM171");
+    TM171setup();
+    delay(1000);
+
+    TM171process();
+    if (TM171lastData <= 80)
+    {
+      Serial.println("Received data from TM171");
+      imuHandler();
+      useTM171 = true;
+    }
+    else
+    {
+      Serial.println("No fresh data from TM171 - you have powered it with the jumper, haven't you?????");
+    }
   }
 
   EEPROM.get(0, EEread); // read identifier
@@ -577,9 +613,10 @@ void loop()
       watchdogTimer = WATCHDOG_FORCE_VALUE;
 
     // read all the switches
-    workSwitch = digitalRead(WORKSW_PIN);     // read work switch (PCB pin)
-    if (workCAN == 1) workSwitch = 0;         // If CAN workswitch is on, set workSwitch ON
-      
+    workSwitch = digitalRead(WORKSW_PIN); // read work switch (PCB pin)
+    if (workCAN == 1)
+      workSwitch = 0; // If CAN workswitch is on, set workSwitch ON
+
     // Engage steering via 1 PCB Button or 2 Tablet or 3 CANBUS
 
     // 1 PCB Button pressed?
@@ -635,11 +672,11 @@ void loop()
       currentState = 1;
       previous = HIGH;
     }
-    remoteSwitch = digitalRead(REMOTE_PIN); //read auto steer enable switch open = 0n closed = Off
+    remoteSwitch = digitalRead(REMOTE_PIN); // read auto steer enable switch open = 0n closed = Off
     switchByte = 0;
-    switchByte |= (remoteSwitch << 2);  //put remote in bit 2
-    switchByte |= (steerSwitch << 1);   //put steerswitch status in bit 1 position
-    switchByte |= workSwitch;   
+    switchByte |= (remoteSwitch << 2); // put remote in bit 2
+    switchByte |= (steerSwitch << 1);  // put steerswitch status in bit 1 position
+    switchByte |= workSwitch;
 
     // get steering position
 
