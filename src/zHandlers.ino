@@ -88,8 +88,6 @@ void imuHandler()
   int16_t temp = 0;
   if (useTM171)
   {
-    float angVel;
-
     // Fill rest of Panda Sentence - Heading
     itoa(YawV.fValue * 10, imuHeading, 10);
 
