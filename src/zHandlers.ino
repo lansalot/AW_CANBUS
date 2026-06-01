@@ -252,22 +252,14 @@ void GGA_Handler() // Rec'd GGA
   bnoTrigger = true;
   if (useTM171)
   {
-    ggaArrivalMs = millis();
-    tm171CounterAtLastGGA = tm171SampleCounter;
-    pendingTM171PandaBuild = true;
+    uint32_t ggaNow = millis();
+    tm171Pairing.onGga(ggaNow);
 
     // If the latest TM171 sample is already close to this GGA, use it now.
-    if (tm171LastSampleMs != 0)
+    if (tm171Pairing.tryImmediatePair(ggaNow, tm171GpsDeltaMs))
     {
-      uint32_t imuAgeMs = ggaArrivalMs - tm171LastSampleMs;
-      uint32_t halfPeriod = tm171EstimatedPeriodMs / 2;
-      if (imuAgeMs <= halfPeriod)
-      {
-        imuHandler();
-        tm171GpsDeltaMs = (int32_t)tm171LastSampleMs - (int32_t)ggaArrivalMs;
-        BuildNmea();
-        pendingTM171PandaBuild = false;
-      }
+      imuHandler();
+      BuildNmea();
     }
 
     if (qos >= 2)
@@ -284,22 +276,14 @@ void GGA_Handler() // Rec'd GGA
   }
   else if (useBNO08x)
   {
-    bnoGgaArrivalMs = millis();
-    bnoCounterAtLastGGA = bnoSampleCounter;
-    pendingBNOPandaBuild = true;
+    uint32_t ggaNow = millis();
+    bnoPairing.onGga(ggaNow);
 
     // If the latest BNO sample is already close to this GGA, use it now.
-    if (bnoLastSampleMs != 0)
+    if (bnoPairing.tryImmediatePair(ggaNow, bnoGpsDeltaMs))
     {
-      uint32_t imuAgeMs = bnoGgaArrivalMs - bnoLastSampleMs;
-      uint32_t halfPeriod = bnoEstimatedPeriodMs / 2;
-      if (imuAgeMs <= halfPeriod)
-      {
-        imuHandler();
-        bnoGpsDeltaMs = (int32_t)bnoLastSampleMs - (int32_t)bnoGgaArrivalMs;
-        BuildNmea();
-        pendingBNOPandaBuild = false;
-      }
+      imuHandler();
+      BuildNmea();
     }
   }
   else

@@ -74,6 +74,7 @@ String inoVersion = ("\r\nAndy's board, CANBUS/TM171 INO");
 #include <EEPROM.h>
 #include "zNMEAParser.h"
 #include "BNO08x_AOG.h"
+#include "ImuGpsPairing.h"
 #include "EthernetUpdater.h"
 EthernetUpdater updater;
 
@@ -334,45 +335,14 @@ float avg = 0;
 elapsedMillis TM171lastData;
 bool useTM171 = false;
 
-// GPS/TM171 pairing state:
-// in TM171 mode, GGA schedules a pending Panda build and loop() sends it when
-// a fresh TM171 sample arrives (or a short timeout occurs).
-uint32_t tm171LastSampleMs = 0;
-uint32_t tm171EstimatedPeriodMs = 40;
-uint32_t tm171SampleCounter = 0;
-uint32_t tm171CounterAtLastGGA = 0;
-uint32_t ggaArrivalMs = 0;
-int32_t tm171GpsDeltaMs = 0;
-bool pendingTM171PandaBuild = false;
-const uint16_t TM171_BUILD_TIMEOUT_MS = 45;
-
 // Set to 1 to print TM171/GPS timing every ~1 second on USB serial.
 #define TM171_TIMING_DEBUG 1
 elapsedMillis tm171TimingPrint;
-int32_t tm171GpsDeltaMinMs = 0;
-int32_t tm171GpsDeltaMaxMs = 0;
-int64_t tm171GpsDeltaSumMs = 0;
-uint32_t tm171GpsDeltaCount = 0;
-bool tm171GpsStatsInitialized = false;
-
-// BNO/GPS pairing state:
-// in BNO mode, GGA schedules a pending Panda build and loop() sends it when
-// a fresh BNO sample arrives (or a short timeout occurs).
-uint32_t bnoLastSampleMs = 0;
-uint32_t bnoEstimatedPeriodMs = GYRO_LOOP_TIME;
-uint32_t bnoSampleCounter = 0;
-uint32_t bnoCounterAtLastGGA = 0;
-uint32_t bnoGgaArrivalMs = 0;
+int32_t tm171GpsDeltaMs = 0;
 int32_t bnoGpsDeltaMs = 0;
-bool pendingBNOPandaBuild = false;
-const uint16_t BNO_BUILD_TIMEOUT_MS = 30;
 
-int32_t bnoGpsDeltaMinMs = 0;
-int32_t bnoGpsDeltaMaxMs = 0;
-int64_t bnoGpsDeltaSumMs = 0;
-uint32_t bnoGpsDeltaCount = 0;
-bool bnoGpsStatsInitialized = false;
-uint32_t bnoGpsStaleCount = 0;
+ImuGpsPairing tm171Pairing(40, 45, false);
+ImuGpsPairing bnoPairing(GYRO_LOOP_TIME, 30, true);
 #include "TM171.ino"
 
 //*******************************************************************************
@@ -844,138 +814,80 @@ void loop()
   {
     TM171process();
 
-    if (pendingTM171PandaBuild)
+    ImuGpsPairing::Decision tm171Decision = tm171Pairing.evaluatePending(millis());
+    if (tm171Decision.shouldSend)
     {
-      bool gotNewSampleAfterGGA = (tm171SampleCounter != tm171CounterAtLastGGA);
-      bool timedOutWaiting = ((millis() - ggaArrivalMs) >= TM171_BUILD_TIMEOUT_MS);
-
-      if (gotNewSampleAfterGGA || timedOutWaiting)
+      imuHandler();
+      if (tm171Decision.validForStats)
       {
-        imuHandler();
-        tm171GpsDeltaMs = (int32_t)tm171LastSampleMs - (int32_t)ggaArrivalMs;
-
-#if TM171_TIMING_DEBUG
-        if (!tm171GpsStatsInitialized)
-        {
-          tm171GpsDeltaMinMs = tm171GpsDeltaMs;
-          tm171GpsDeltaMaxMs = tm171GpsDeltaMs;
-          tm171GpsDeltaSumMs = tm171GpsDeltaMs;
-          tm171GpsDeltaCount = 1;
-          tm171GpsStatsInitialized = true;
-        }
-        else
-        {
-          if (tm171GpsDeltaMs < tm171GpsDeltaMinMs)
-            tm171GpsDeltaMinMs = tm171GpsDeltaMs;
-          if (tm171GpsDeltaMs > tm171GpsDeltaMaxMs)
-            tm171GpsDeltaMaxMs = tm171GpsDeltaMs;
-          tm171GpsDeltaSumMs += tm171GpsDeltaMs;
-          tm171GpsDeltaCount++;
-        }
-#endif
-
-        BuildNmea();
-        pendingTM171PandaBuild = false;
-
-#if TM171_TIMING_DEBUG
-        if (tm171TimingPrint > 1000)
-        {
-          tm171TimingPrint = 0;
-          int32_t avgMs = (tm171GpsDeltaCount > 0) ? (int32_t)(tm171GpsDeltaSumMs / (int64_t)tm171GpsDeltaCount) : 0;
-          Serial.print("TM171/GGA dt=");
-          Serial.print(tm171GpsDeltaMs);
-          Serial.print("ms, min=");
-          Serial.print(tm171GpsDeltaMinMs);
-          Serial.print("ms, max=");
-          Serial.print(tm171GpsDeltaMaxMs);
-          Serial.print("ms, avg=");
-          Serial.print(avgMs);
-          Serial.print("ms, n=");
-          Serial.print(tm171GpsDeltaCount);
-          Serial.print(", estPeriod=");
-          Serial.print(tm171EstimatedPeriodMs);
-          Serial.println("ms");
-        }
-#endif
+        tm171GpsDeltaMs = tm171Decision.deltaMs;
+        tm171Pairing.recordDelta(tm171GpsDeltaMs);
       }
+
+      BuildNmea();
+
+#if TM171_TIMING_DEBUG
+      if (tm171TimingPrint > 1000)
+      {
+        tm171TimingPrint = 0;
+        const ImuGpsPairing::Stats &tm171Stats = tm171Pairing.stats();
+        int32_t avgMs = (tm171Stats.count > 0) ? (int32_t)(tm171Stats.sumMs / (int64_t)tm171Stats.count) : 0;
+        Serial.print("TM171/GGA dt=");
+        Serial.print(tm171Decision.validForStats ? tm171GpsDeltaMs : 0);
+        Serial.print("ms, min=");
+        Serial.print(tm171Stats.minMs);
+        Serial.print("ms, max=");
+        Serial.print(tm171Stats.maxMs);
+        Serial.print("ms, avg=");
+        Serial.print(avgMs);
+        Serial.print("ms, n=");
+        Serial.print(tm171Stats.count);
+        Serial.print(", estPeriod=");
+        Serial.print(tm171Pairing.estimatedPeriod());
+        Serial.println("ms");
+      }
+#endif
     }
   }
   else if (useBNO08x)
   {
     Read_IMU();
 
-    if (pendingBNOPandaBuild)
+    ImuGpsPairing::Decision bnoDecision = bnoPairing.evaluatePending(millis());
+    if (bnoDecision.shouldSend)
     {
-      bool gotNewSampleAfterGGA = (bnoSampleCounter != bnoCounterAtLastGGA);
-      bool timedOutWaiting = ((millis() - bnoGgaArrivalMs) >= BNO_BUILD_TIMEOUT_MS);
-
-      if (gotNewSampleAfterGGA || timedOutWaiting)
+      imuHandler();
+      if (bnoDecision.validForStats)
       {
-        imuHandler();
-
-        bool hasValidSample = (bnoLastSampleMs != 0);
-        uint32_t bnoSampleAgeMs = hasValidSample ? (millis() - bnoLastSampleMs) : 0;
-
-        // Only use timing stats when the sample is valid and reasonably fresh.
-        bool canUseForTimingStats = hasValidSample &&
-                                    (gotNewSampleAfterGGA ||
-                                     (bnoSampleAgeMs <= (bnoEstimatedPeriodMs + BNO_BUILD_TIMEOUT_MS)));
-
-        if (canUseForTimingStats)
-        {
-          bnoGpsDeltaMs = (int32_t)bnoLastSampleMs - (int32_t)bnoGgaArrivalMs;
-        }
-        else
-        {
-          bnoGpsStaleCount++;
-        }
-
-#if TM171_TIMING_DEBUG
-        if (canUseForTimingStats && !bnoGpsStatsInitialized)
-        {
-          bnoGpsDeltaMinMs = bnoGpsDeltaMs;
-          bnoGpsDeltaMaxMs = bnoGpsDeltaMs;
-          bnoGpsDeltaSumMs = bnoGpsDeltaMs;
-          bnoGpsDeltaCount = 1;
-          bnoGpsStatsInitialized = true;
-        }
-        else if (canUseForTimingStats)
-        {
-          if (bnoGpsDeltaMs < bnoGpsDeltaMinMs)
-            bnoGpsDeltaMinMs = bnoGpsDeltaMs;
-          if (bnoGpsDeltaMs > bnoGpsDeltaMaxMs)
-            bnoGpsDeltaMaxMs = bnoGpsDeltaMs;
-          bnoGpsDeltaSumMs += bnoGpsDeltaMs;
-          bnoGpsDeltaCount++;
-        }
-#endif
-
-        BuildNmea();
-        pendingBNOPandaBuild = false;
-
-#if TM171_TIMING_DEBUG
-        if (tm171TimingPrint > 1000)
-        {
-          tm171TimingPrint = 0;
-          int32_t avgMs = (bnoGpsDeltaCount > 0) ? (int32_t)(bnoGpsDeltaSumMs / (int64_t)bnoGpsDeltaCount) : 0;
-          Serial.print("BNO/GGA dt=");
-          Serial.print(canUseForTimingStats ? bnoGpsDeltaMs : 0);
-          Serial.print("ms, min=");
-          Serial.print(bnoGpsDeltaMinMs);
-          Serial.print("ms, max=");
-          Serial.print(bnoGpsDeltaMaxMs);
-          Serial.print("ms, avg=");
-          Serial.print(avgMs);
-          Serial.print("ms, n=");
-          Serial.print(bnoGpsDeltaCount);
-          Serial.print(", stale=");
-          Serial.print(bnoGpsStaleCount);
-          Serial.print(", estPeriod=");
-          Serial.print(bnoEstimatedPeriodMs);
-          Serial.println("ms");
-        }
-#endif
+        bnoGpsDeltaMs = bnoDecision.deltaMs;
+        bnoPairing.recordDelta(bnoGpsDeltaMs);
       }
+
+      BuildNmea();
+
+#if TM171_TIMING_DEBUG
+      if (tm171TimingPrint > 1000)
+      {
+        tm171TimingPrint = 0;
+        const ImuGpsPairing::Stats &bnoStats = bnoPairing.stats();
+        int32_t avgMs = (bnoStats.count > 0) ? (int32_t)(bnoStats.sumMs / (int64_t)bnoStats.count) : 0;
+        Serial.print("BNO/GGA dt=");
+        Serial.print(bnoDecision.validForStats ? bnoGpsDeltaMs : 0);
+        Serial.print("ms, min=");
+        Serial.print(bnoStats.minMs);
+        Serial.print("ms, max=");
+        Serial.print(bnoStats.maxMs);
+        Serial.print("ms, avg=");
+        Serial.print(avgMs);
+        Serial.print("ms, n=");
+        Serial.print(bnoStats.count);
+        Serial.print(", stale=");
+        Serial.print(bnoStats.staleCount);
+        Serial.print(", estPeriod=");
+        Serial.print(bnoPairing.estimatedPeriod());
+        Serial.println("ms");
+      }
+#endif
     }
   }
 

@@ -176,15 +176,7 @@ void TM171process() {
                 {
                 case 35: //RPY Output
                 {
-                    uint32_t nowMs = millis();
-                    if (tm171LastSampleMs != 0)
-                    {
-                        uint32_t dt = nowMs - tm171LastSampleMs;
-                        // Smooth period estimate to reduce jitter impact.
-                        tm171EstimatedPeriodMs = ((tm171EstimatedPeriodMs * 3) + dt) / 4;
-                    }
-                    tm171LastSampleMs = nowMs;
-                    tm171SampleCounter++;
+                    tm171Pairing.noteImuSample(millis());
 
                     RollV.fBytes[0] = ImuData[11];
                     RollV.fBytes[1] = ImuData[12];
