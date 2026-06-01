@@ -174,6 +174,17 @@ void TM171process() {
                 switch (functionCode)
                 {
                 case 35: //RPY Output
+                {
+                    uint32_t nowMs = millis();
+                    if (tm171LastSampleMs != 0)
+                    {
+                        uint32_t dt = nowMs - tm171LastSampleMs;
+                        // Smooth period estimate to reduce jitter impact.
+                        tm171EstimatedPeriodMs = ((tm171EstimatedPeriodMs * 3) + dt) / 4;
+                    }
+                    tm171LastSampleMs = nowMs;
+                    tm171SampleCounter++;
+
                     RollV.fBytes[0] = ImuData[11];
                     RollV.fBytes[1] = ImuData[12];
                     RollV.fBytes[2] = ImuData[13];
@@ -198,6 +209,7 @@ void TM171process() {
                     Serial.println(RollV.fValue);
 #endif
                     break;
+                }
 
                 case 22: // Status Output
                     TemperatureV.fBytes[0] = ImuData[11];

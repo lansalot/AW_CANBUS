@@ -69,6 +69,16 @@ void Read_IMU()
     {
       if (bno08x.dataAvailable() == true)
       {
+        uint32_t nowMs = millis();
+        if (bnoLastSampleMs != 0)
+        {
+          uint32_t dt = nowMs - bnoLastSampleMs;
+          // Smooth period estimate to reduce jitter impact.
+          bnoEstimatedPeriodMs = ((bnoEstimatedPeriodMs * 3) + dt) / 4;
+        }
+        bnoLastSampleMs = nowMs;
+        bnoSampleCounter++;
+
         elapsedIMULED = 0;
         IMU_LastReadTime = 0;
         float dqx, dqy, dqz, dqw, dacr;

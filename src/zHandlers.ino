@@ -32,18 +32,25 @@ char imuYawRate[6];
 
 elapsedMillis badQOStimer;
 
-const char* qosToString(uint8_t qos)
+const char *qosToString(uint8_t qos)
 {
-	switch (qos)
-	{
-	case 0: return "Service unavailable - Restarting";
-	case 1: return "Service unavailable - Fault";
-	case 2: return "Performance limited";
-	case 3: return "Basic performance";
-	case 4: return "Fine service";
-	case 5: return "Very good service";
-	default: return "Unknown QoS";
-	}
+  switch (qos)
+  {
+  case 0:
+    return "Service unavailable - Restarting";
+  case 1:
+    return "Service unavailable - Fault";
+  case 2:
+    return "Performance limited";
+  case 3:
+    return "Basic performance";
+  case 4:
+    return "Fine service";
+  case 5:
+    return "Very good service";
+  default:
+    return "Unknown QoS";
+  }
 }
 
 void CalculateChecksum(void)
@@ -75,13 +82,11 @@ void CalculateChecksum(void)
   strcat(nmea, hex2);
 }
 
-
 // If odd characters showed up.
 void errorHandler()
 {
   // nothing at the moment
 }
-
 
 void imuHandler()
 {
@@ -194,8 +199,6 @@ void BuildNmea(void)
   Udp.endPacket();
 }
 
-
-
 void GGA_Handler() // Rec'd GGA
 {
   // fix time
@@ -249,9 +252,24 @@ void GGA_Handler() // Rec'd GGA
   bnoTrigger = true;
   if (useTM171)
   {
-    imuTrigger = true;
-    imuTimer = 0;
-    BuildNmea();
+    ggaArrivalMs = millis();
+    tm171CounterAtLastGGA = tm171SampleCounter;
+    pendingTM171PandaBuild = true;
+
+    // If the latest TM171 sample is already close to this GGA, use it now.
+    if (tm171LastSampleMs != 0)
+    {
+      uint32_t imuAgeMs = ggaArrivalMs - tm171LastSampleMs;
+      uint32_t halfPeriod = tm171EstimatedPeriodMs / 2;
+      if (imuAgeMs <= halfPeriod)
+      {
+        imuHandler();
+        tm171GpsDeltaMs = (int32_t)tm171LastSampleMs - (int32_t)ggaArrivalMs;
+        BuildNmea();
+        pendingTM171PandaBuild = false;
+      }
+    }
+
     if (qos >= 2)
     {
 
@@ -264,14 +282,29 @@ void GGA_Handler() // Rec'd GGA
       }
     }
   }
-
-  else if(useBNO08x)
+  else if (useBNO08x)
   {
-    imuHandler(); // Get IMU data ready
-    BuildNmea();  // Build & send data GPS data to AgIO
+    bnoGgaArrivalMs = millis();
+    bnoCounterAtLastGGA = bnoSampleCounter;
+    pendingBNOPandaBuild = true;
+
+    // If the latest BNO sample is already close to this GGA, use it now.
+    if (bnoLastSampleMs != 0)
+    {
+      uint32_t imuAgeMs = bnoGgaArrivalMs - bnoLastSampleMs;
+      uint32_t halfPeriod = bnoEstimatedPeriodMs / 2;
+      if (imuAgeMs <= halfPeriod)
+      {
+        imuHandler();
+        bnoGpsDeltaMs = (int32_t)bnoLastSampleMs - (int32_t)bnoGgaArrivalMs;
+        BuildNmea();
+        pendingBNOPandaBuild = false;
+      }
+    }
   }
   else
   {
+    Serial.println("No IMU configured, sending GPS data only");
     itoa(0, imuYawRate, 10);
     itoa(0, imuRoll, 10);
     itoa(0, imuPitch, 10);
