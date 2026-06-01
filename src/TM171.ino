@@ -103,7 +103,8 @@ bool GoodCRC(byte Data[], byte Length)
 
 
 void TM171setup() {
-    SerialImu->begin(115200);
+    Serial.println("Setting up TM171 IMU at baud rate 230400 (expecting 100hz sample)...");
+    SerialImu->begin(230400);
     SerialImu->addMemoryForWrite(SerialImutxbuffer, serial_buffer_size);
     SerialImu->addMemoryForRead(SerialImurxbuffer, serial_buffer_size);
 }
