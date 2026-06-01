@@ -38,6 +38,7 @@ private:
     bool updateMode_;
     uint16_t packetLength_;
     uint8_t receivedData_[500];
+    uint32_t lastHeartbeatMs_;
     int displayCount_;
     uint32_t bufferAddr_;
     uint32_t bufferSize_;
@@ -49,6 +50,7 @@ private:
     void resetHexState();
     void sendLineCheck();
     void sendReceiveReady();
+    void sendHeartbeat();
 
     int processHexRecord(char* packetBuffer, int packetSize);
 

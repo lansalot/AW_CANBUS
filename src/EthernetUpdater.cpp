@@ -14,6 +14,7 @@ EthernetUpdater::EthernetUpdater()
 	started_(false),
 	updateMode_(false),
 	packetLength_(0),
+	lastHeartbeatMs_(0),
 	displayCount_(0),
 	bufferAddr_(0),
 	bufferSize_(0),
@@ -31,6 +32,7 @@ void EthernetUpdater::begin()
 	started_ = comm_.begin(ReceivePort);
 	if (started_)
 	{
+		lastHeartbeatMs_ = millis();
 		Serial.print("Ethernet Update UDP listening to port: ");
 		Serial.println(ReceivePort);
 	}
@@ -47,6 +49,14 @@ void EthernetUpdater::poll()
 	{
 		return;
 	}
+
+	uint32_t now = millis();
+	if (now - lastHeartbeatMs_ >= 3000U)
+	{
+		sendHeartbeat();
+		lastHeartbeatMs_ = now;
+	}
+
 	packetLength_ = comm_.parsePacket();
 	if (packetLength_ == 0)
 	{
@@ -175,6 +185,25 @@ void EthernetUpdater::sendReceiveReady()
 	comm_.write(data, sizeof(data));
 	comm_.endPacket();
 
+}
+
+void EthernetUpdater::sendHeartbeat()
+{
+	if (!started_)
+	{
+		return;
+	}
+
+	if (Ethernet.linkStatus() != LinkON)
+	{
+		return;
+	}
+
+	uint8_t data[8] = { 35, 128, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	comm_.beginPacket(destination_, SendPort);
+	comm_.write(data, sizeof(data));
+	comm_.endPacket();
 }
 
 int EthernetUpdater::processHexRecord(char* packetBuffer, int packetSize)
