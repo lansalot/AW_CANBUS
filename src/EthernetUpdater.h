@@ -10,6 +10,7 @@ public:
 
     void begin();
     void poll();
+    bool checkPacket(const uint8_t* packetData, uint16_t packetLength, const IPAddress& remoteIp);
 
     bool isUpdating() const;
     int linesReceived() const;
@@ -36,7 +37,6 @@ private:
     bool started_;
 
     bool updateMode_;
-    uint16_t packetLength_;
     uint8_t receivedData_[500];
     uint32_t lastHeartbeatMs_;
     int displayCount_;

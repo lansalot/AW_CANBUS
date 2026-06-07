@@ -118,6 +118,7 @@ void Read_IMU()
           pitch = asin(t2) * RAD_TO_DEG_X_10;
           roll = atan2(t0, t1) * RAD_TO_DEG_X_10;
         }
+        imuHasChanged = true;
       }
     }
   }

@@ -176,6 +176,7 @@ void TM171process() {
                 {
                 case 35: //RPY Output
                 {
+                    imuHasChanged = true;
                     tm171Pairing.noteImuSample(millis());
 
                     RollV.fBytes[0] = ImuData[11];

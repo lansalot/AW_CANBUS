@@ -8,7 +8,7 @@ void udpSteerRecv(int sizeToRead)
   IPAddress src_ip = Udp.remoteIP();
   Udp.read(udpData, sizeToRead);
 
-  if (udpData[0] == 0x80 && udpData[1] == 0x81 && udpData[2] == 0x7F) // Data
+  if (udpData[0] == 0x80 && udpData[1] == 0x81 && udpData[2] == 0x7F) // AOG Data
   {
     if (udpData[3] == 0xFE) // 254
     {
@@ -422,7 +422,11 @@ void udpSteerRecv(int sizeToRead)
       }
     } // end 202
 
-  } // end if 80 81 7F
-
+  } else  // end if 80 81 7F
+  {
+    // Final check: updater parses this packet from the main UDP path without consuming another UDP packet.
+    Serial.println("Packet received that is not for AgOpenGPS, passing to updater");
+    updater.checkPacket(udpData, sizeToRead, src_ip);
+  }
 } // end udp callback
 #endif

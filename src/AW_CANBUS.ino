@@ -70,6 +70,8 @@ String inoVersion = ("\r\nAndy's board, CANBUS/TM171 INO");
 #define CONST_180_DIVIDED_BY_PI 57.2957795130823
 #define RAD_TO_DEG_X_10 572.95779513082320876798154814105
 
+bool imuHasChanged = false;
+bool gpsHasChanged = false;
 // #include <Wire.h>
 #include <EEPROM.h>
 #include "zNMEAParser.h"
@@ -383,33 +385,12 @@ template <typename T> T multiMap(T value, T *_in, T *_out, uint8_t size)
 }
 void imuHandler(); // forward declaration
 
-IntervalTimer ledIMUTimer;
-IntervalTimer ledGPSTimer;
-
-#ifdef useLED
-void ledBlinkIMUISR()
-{
-  if (elapsedIMULED < 500)
-  {
-    digitalWrite(LED_IMU, !digitalRead(LED_IMU));
-    elapsedIMULED = 0;
-  }
-}
-void ledBlinkGPSISR()
-{
-  if (elapsedGPSLED < 500)
-  {
-    digitalWrite(LED_GPS, !digitalRead(LED_GPS));
-    elapsedGPSLED = 0;
-  }
-}
-#endif
-
 /////////////////////////////// SETUP /////////////////////////////////////
 
 void setup()
 {
-  delay(1000);              // Small delay so serial can monitor start up
+  delay(1000); // Small delay so serial can monitor start up
+  Serial.begin(115200);
   set_arm_clock(450000000); // Set CPU speed to 450mhz
   Serial.print("CPU speed set to: ");
   Serial.println(F_CPU_ACTUAL);
@@ -421,14 +402,7 @@ void setup()
   pinMode(LED_TEENSY, OUTPUT);
 #endif
 
-  Serial.begin(115200);
-
   delay(2000);
-
-#ifdef useLED
-  ledIMUTimer.begin(ledBlinkIMUISR, 500000); // 100us interval
-  ledGPSTimer.begin(ledBlinkGPSISR, 500000); // 100us interval
-#endif
 
   // Check BNO08x IMU
   uint8_t error;
@@ -609,9 +583,17 @@ void setup()
 /////////////////////////////// LOOP /////////////////////////////////////
 void loop()
 {
-  updater.poll();
   currentTime = millis();
-
+  if (imuHasChanged)
+  {
+    digitalWrite(LED_IMU, !digitalRead(LED_IMU));
+    imuHasChanged = false;
+  }
+  if (gpsHasChanged)
+  {
+    digitalWrite(LED_GPS, !digitalRead(LED_GPS));
+    gpsHasChanged = false;
+  }
   //--Main Timed Loop----------------------------------
   if (currentTime - lastTime >= LOOP_TIME)
   {

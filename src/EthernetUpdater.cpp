@@ -13,7 +13,6 @@ EthernetUpdater::EthernetUpdater()
 	sender_(),
 	started_(false),
 	updateMode_(false),
-	packetLength_(0),
 	lastHeartbeatMs_(0),
 	displayCount_(0),
 	bufferAddr_(0),
@@ -56,28 +55,37 @@ void EthernetUpdater::poll()
 		sendHeartbeat();
 		lastHeartbeatMs_ = now;
 	}
+}
 
-	packetLength_ = comm_.parsePacket();
-	if (packetLength_ == 0)
+bool EthernetUpdater::checkPacket(const uint8_t* packetData, uint16_t packetLength, const IPAddress& remoteIp)
+{
+	if (!started_)
 	{
-		return;
-	}
-	if (packetLength_ > sizeof(receivedData_))
-	{
-		packetLength_ = sizeof(receivedData_);
+		return false;
 	}
 
-	comm_.read(receivedData_, packetLength_);
+	if (packetLength == 0)
+	{
+		return false;
+	}
+
+	if (packetLength > sizeof(receivedData_))
+	{
+		packetLength = sizeof(receivedData_);
+	}
+
+	memcpy(receivedData_, packetData, packetLength);
+
 	if (updateMode_)
 	{
 		// Serial.print("update rx len=");
-		// Serial.print(packetLength_);
+		// Serial.print(packetLength);
 		// Serial.print(" first=0x");
 		// Serial.println(receivedData_[0], HEX);
 
-		if (processHexRecord(reinterpret_cast<char*>(receivedData_), packetLength_))
+		if (processHexRecord(reinterpret_cast<char*>(receivedData_), packetLength))
 		{
-			Serial.print("Received update packet with len " + String(packetLength_));
+			Serial.print("Received update packet with len " + String(packetLength));
 			Serial.println();
 			Serial.println("Update error.");
 			Serial.printf("erase FLASH buffer / free RAM buffer...\n");
@@ -85,7 +93,12 @@ void EthernetUpdater::poll()
 			firmware_buffer_free(bufferAddr_, bufferSize_);
 			REBOOT;
 		}
-		return;
+		return true;
+	}
+
+	if (packetLength < 2)
+	{
+		return false;
 	}
 
 	uint8_t pgnLength;
@@ -96,11 +109,11 @@ void EthernetUpdater::poll()
 	case 32800:
 		Serial.println("update packet spotted");
 		pgnLength = 6;
-		if (packetLength_ > pgnLength - 1)
+		if (packetLength > pgnLength - 1)
 		{
 			if (goodCRC(receivedData_, pgnLength))
 			{
-				sender_ = comm_.remoteIP();
+				sender_ = remoteIp;
 				if (firmware_buffer_init(&bufferAddr_, &bufferSize_))
 				{
 					Serial.printf("target = %s (%dK flash in %dK sectors)\n", FLASH_ID, FLASH_SIZE / 1024, FLASH_SECTOR_SIZE / 1024);
@@ -118,8 +131,11 @@ void EthernetUpdater::poll()
 				}
 			}
 		}
+		return true;
 		break;
 	}
+
+	return false;
 }
 
 bool EthernetUpdater::isUpdating() const

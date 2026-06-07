@@ -250,6 +250,7 @@ void GGA_Handler() // Rec'd GGA
 
   bnoTimer = 0;
   bnoTrigger = true;
+  gpsHasChanged = true;
   if (useTM171)
   {
     uint32_t ggaNow = millis();
