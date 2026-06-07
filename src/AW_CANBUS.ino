@@ -338,7 +338,7 @@ elapsedMillis TM171lastData;
 bool useTM171 = false;
 
 // Set to 1 to print TM171/GPS timing every ~1 second on USB serial.
-#define TM171_TIMING_DEBUG 1
+// #define TM171_TIMING_DEBUG 1
 elapsedMillis tm171TimingPrint;
 int32_t tm171GpsDeltaMs = 0;
 int32_t bnoGpsDeltaMs = 0;

@@ -270,7 +270,7 @@ void GGA_Handler() // Rec'd GGA
       {
         badQOStimer = 0;
         String message = "TM171 - Temp: " + String(TemperatureV.fValue) + "C  QoS: " + String(qosToString(qos));
-        Serial.println(message);
+        //Serial.println(message);
         sendHardwareMessage(message, 5);
       }
     }
