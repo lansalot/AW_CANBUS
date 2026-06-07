@@ -9,9 +9,8 @@ public:
     EthernetUpdater();
 
     void begin();
-    void poll();
     bool checkPacket(const uint8_t* packetData, uint16_t packetLength, const IPAddress& remoteIp);
-
+    void sendHeartbeat();
     bool isUpdating() const;
     int linesReceived() const;
 
@@ -50,7 +49,6 @@ private:
     void resetHexState();
     void sendLineCheck();
     void sendReceiveReady();
-    void sendHeartbeat();
 
     int processHexRecord(char* packetBuffer, int packetSize);
 

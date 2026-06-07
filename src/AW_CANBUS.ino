@@ -184,6 +184,7 @@ uint32_t currentTime = LOOP_TIME;
 const uint16_t GYRO_LOOP_TIME = 20; // 50Hz IMU
 uint32_t lastGyroTime = GYRO_LOOP_TIME;
 uint32_t IMU_currentTime;
+elapsedMillis lastIMUData = 0;
 
 bool blink;
 
@@ -891,7 +892,10 @@ void loop()
     // Serial.println("UDP Data Avalible");
     udpSteerRecv(packetSize);
   }
-
+  if (lastIMUData > 100)
+  {
+    lastIMUData = 0;
+    sendHardwareMessage("IMU has stalled!!!", 1);
+  }
+  updater.sendHeartbeat();
 } // end of main loop
-
-//********************************************************************************
