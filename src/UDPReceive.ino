@@ -422,11 +422,6 @@ void udpSteerRecv(int sizeToRead)
       }
     } // end 202
 
-  } else  // end if 80 81 7F
-  {
-    // Final check: updater parses this packet from the main UDP path without consuming another UDP packet.
-    Serial.println("Packet received that is not for AgOpenGPS, passing to updater");
-    updater.checkPacket(udpData, sizeToRead, src_ip);
-  }
+  } 
 } // end udp callback
 #endif

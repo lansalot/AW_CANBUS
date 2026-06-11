@@ -897,5 +897,5 @@ void loop()
     lastIMUData = 0;
     sendHardwareMessage("IMU has stalled!!!", 1);
   }
-  updater.sendHeartbeat();
+  updater.poll();
 } // end of main loop

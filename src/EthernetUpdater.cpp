@@ -2,23 +2,23 @@
 
 #include <NativeEthernet.h>
 #include <string.h>
-#include "FXUtil.h" // read_ascii_line(), hex file support
-extern "C"
-{
+#include "FXUtil.h"		// read_ascii_line(), hex file support
+extern "C" {
 #include "FlashTxx.h"
 }
 
 EthernetUpdater::EthernetUpdater()
 	: comm_(),
-	  destination_(),
-	  sender_(),
-	  started_(false),
-	  updateMode_(false),
-	  lastHeartbeatMs_(0),
-	  displayCount_(0),
-	  bufferAddr_(0),
-	  bufferSize_(0),
-	  hex_{}
+	destination_(),
+	sender_(),
+	started_(false),
+	updateMode_(false),
+	packetLength_(0),
+	lastHeartbeatMs_(0),
+	displayCount_(0),
+	bufferAddr_(0),
+	bufferSize_(0),
+	hex_{}
 {
 	resetHexState();
 }
@@ -38,35 +38,46 @@ void EthernetUpdater::begin()
 	}
 }
 
-bool EthernetUpdater::checkPacket(const uint8_t *packetData, uint16_t packetLength, const IPAddress &remoteIp)
+void EthernetUpdater::poll()
 {
 	if (!started_)
 	{
-		return false;
+		return;
 	}
 
-	if (packetLength == 0)
+	if (Ethernet.linkStatus() != LinkON)
 	{
-		return false;
+		return;
 	}
 
-	if (packetLength > sizeof(receivedData_))
+	uint32_t now = millis();
+	if (now - lastHeartbeatMs_ >= 3000U)
 	{
-		packetLength = sizeof(receivedData_);
+		sendHeartbeat();
+		lastHeartbeatMs_ = now;
 	}
 
-	memcpy(receivedData_, packetData, packetLength);
+	packetLength_ = comm_.parsePacket();
+	if (packetLength_ == 0)
+	{
+		return;
+	}
+	if (packetLength_ > sizeof(receivedData_))
+	{
+		packetLength_ = sizeof(receivedData_);
+	}
 
+	comm_.read(receivedData_, packetLength_);
 	if (updateMode_)
 	{
 		// Serial.print("update rx len=");
-		// Serial.print(packetLength);
+		// Serial.print(packetLength_);
 		// Serial.print(" first=0x");
 		// Serial.println(receivedData_[0], HEX);
 
-		if (processHexRecord(reinterpret_cast<char *>(receivedData_), packetLength))
+		if (processHexRecord(reinterpret_cast<char*>(receivedData_), packetLength_))
 		{
-			Serial.print("Received update packet with len " + String(packetLength));
+			Serial.print("Received update packet with len " + String(packetLength_));
 			Serial.println();
 			Serial.println("Update error.");
 			Serial.printf("erase FLASH buffer / free RAM buffer...\n");
@@ -74,12 +85,7 @@ bool EthernetUpdater::checkPacket(const uint8_t *packetData, uint16_t packetLeng
 			firmware_buffer_free(bufferAddr_, bufferSize_);
 			REBOOT;
 		}
-		return true;
-	}
-
-	if (packetLength < 2)
-	{
-		return false;
+		return;
 	}
 
 	uint8_t pgnLength;
@@ -90,11 +96,11 @@ bool EthernetUpdater::checkPacket(const uint8_t *packetData, uint16_t packetLeng
 	case 32800:
 		Serial.println("update packet spotted");
 		pgnLength = 6;
-		if (packetLength > pgnLength - 1)
+		if (packetLength_ > pgnLength - 1)
 		{
 			if (goodCRC(receivedData_, pgnLength))
 			{
-				sender_ = remoteIp;
+				sender_ = comm_.remoteIP();
 				if (firmware_buffer_init(&bufferAddr_, &bufferSize_))
 				{
 					Serial.printf("target = %s (%dK flash in %dK sectors)\n", FLASH_ID, FLASH_SIZE / 1024, FLASH_SECTOR_SIZE / 1024);
@@ -112,11 +118,8 @@ bool EthernetUpdater::checkPacket(const uint8_t *packetData, uint16_t packetLeng
 				}
 			}
 		}
-		return true;
 		break;
 	}
-
-	return false;
 }
 
 bool EthernetUpdater::isUpdating() const
@@ -181,6 +184,7 @@ void EthernetUpdater::sendReceiveReady()
 	comm_.beginPacket(destination_, SendPort);
 	comm_.write(data, sizeof(data));
 	comm_.endPacket();
+
 }
 
 void EthernetUpdater::sendHeartbeat()
@@ -195,19 +199,14 @@ void EthernetUpdater::sendHeartbeat()
 		return;
 	}
 
-	uint32_t now = millis();
-	if (now - lastHeartbeatMs_ >= 3000U)
-	{
-		uint8_t data[8] = {35, 128, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	uint8_t data[8] = { 35, 128, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-		comm_.beginPacket(destination_, SendPort);
-		comm_.write(data, sizeof(data));
-		comm_.endPacket();
-		lastHeartbeatMs_ = now;
-	}
+	comm_.beginPacket(destination_, SendPort);
+	comm_.write(data, sizeof(data));
+	comm_.endPacket();
 }
 
-int EthernetUpdater::processHexRecord(char *packetBuffer, int packetSize)
+int EthernetUpdater::processHexRecord(char* packetBuffer, int packetSize)
 {
 	if (packetSize < 5)
 	{
@@ -274,7 +273,7 @@ int EthernetUpdater::processHexRecord(char *packetBuffer, int packetSize)
 						}
 						else if (!IN_FLASH(bufferAddr_))
 						{
-							memcpy(reinterpret_cast<void *>(addrInBuffer), reinterpret_cast<void *>(hex_.data), hex_.num);
+							memcpy(reinterpret_cast<void*>(addrInBuffer), reinterpret_cast<void*>(hex_.data), hex_.num);
 						}
 						else if (IN_FLASH(bufferAddr_))
 						{
@@ -303,7 +302,8 @@ int EthernetUpdater::processHexRecord(char *packetBuffer, int packetSize)
 					}
 					else if (hex_.code == 5)
 					{
-						hex_.base = (hex_.data[0] << 24) | (hex_.data[1] << 16) | (hex_.data[2] << 8) | (hex_.data[3] << 0);
+						hex_.base = (hex_.data[0] << 24) | (hex_.data[1] << 16)
+							| (hex_.data[2] << 8) | (hex_.data[3] << 0);
 					}
 					else if (hex_.code == 6)
 					{
