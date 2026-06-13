@@ -289,7 +289,6 @@ void GGA_Handler() // Rec'd GGA
   }
   else
   {
-    Serial.println("No IMU configured, sending GPS data only");
     itoa(0, imuYawRate, 10);
     itoa(0, imuRoll, 10);
     itoa(0, imuPitch, 10);
