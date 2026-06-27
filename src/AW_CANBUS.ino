@@ -130,7 +130,7 @@ FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_256> ISO_Bus; // ISO Bus
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_256> V_Bus;   // Steering Valve Bus
 
 uint8_t Brand = 1;              // Variable to set brand via serial monitor.
-uint8_t gpsMode = 1;            // Variable to set GPS mode via serial monitor.
+uint8_t gpsMode = 4;            // Variable to set GPS mode via serial monitor.
 uint8_t CANBUS_ModuleID = 0x1C; // Used for the Module CAN ID
 
 bool reverse_MT = 0;

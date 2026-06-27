@@ -97,6 +97,7 @@ void Help(){
   Serial.println("7 = Set Brand as AgOpenGPS");
   Serial.println("8 = Set Brand as Cat MT Late");
   Serial.println("9 = Set Brand as Cat MT Early");
+  Serial.println("10 = Set Brand as Deutz");
   Serial.println("R = Show CAN Data");
   Serial.println("S = Stop Data");
   Serial.println("Z = Danfoss PVED parameter setup");
