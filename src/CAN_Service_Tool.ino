@@ -199,6 +199,16 @@ void CatMT_Early() {
     SCB_AIRCR = 0x05FA0004; //Teensy Reset
     Serial.println(" ");
 }
+
+//**************************************************************************************
+void Deutz() {
+    EEPROM.update(70, 10);
+    Brand = EEPROM.read(70);
+    Serial.println("Brand Set Deutz, Restarting Teensy");
+    delay(1000);
+    SCB_AIRCR = 0x05FA0004; //Teensy Reset
+    Serial.println(" ");
+}
 //**************************************************************************************
 void ReadCAN(){
 ShowCANData = 1;
@@ -746,46 +756,83 @@ void setupPVED() {
 
 void Service_Tool (void) 
 {
+    static char commandBuffer[16];
+    static uint8_t commandIndex = 0;
+
   Serial.println("\r\nAgOpenGPS CANBUS Service Tool Mode:");
+    Serial.println("Send command then press Enter");
   Help();
   
   while (Service == 1) 
   {
-  
-      if (Serial.available())   // Read Data From Serail Monitor 
-      {    
-        byte b = Serial.read();
-        if ( b == '?') Help();          
-        else if ( b == 'X') Service = 0; //Exit Service Mode
-        else if ( b == '0') Claas();
-        else if ( b == '1') Valtra();
-        else if ( b == '2') CNH();
-        else if ( b == '3') Fendt();
-        else if ( b == '4') JCB();
-        else if ( b == '5') FendtOne();
-        else if ( b == '6') Lindner();
-        else if ( b == '7') AgOpenGPS();
-        else if ( b == '8') CatMT();
-        else if ( b == '9') CatMT_Early();
-        else if ( b == 'R') ReadCAN();
-        else if ( b == 'S') StopCAN();
-        else if ( b == 'Z') setupPVED();
-        else if ( b == 'f') gpsModeOne();
-        else if ( b == 'F') gpsModeTwo();
-        else if ( b == 'p') gpsModeThree();
-        else if ( b == 'P') gpsModeFour();
+            while (Serial.available())   // Read line data from Serial Monitor
+            {
+                char b = (char)Serial.read();
 
-        else
+                if (b == 8 || b == 127)
+                {
+                    if (commandIndex > 0)
+                    {
+                        commandIndex--;
+                        Serial.print("\b \b");
+                        Serial.flush();
+                    }
+                    continue;
+                }
+
+                // Process command only after CR/LF so multi-digit input like "10" works.
+                if (b == '\r' || b == '\n')
         {
-          Serial.println("No command, send ? for help");
-          Serial.println(" ");
-          delay(50);
+                    if (commandIndex > 0)
+                    {
+                        Serial.println();
+                        commandBuffer[commandIndex] = '\0';
+
+                        if (strcmp(commandBuffer, "?") == 0) Help();
+                        else if (strcmp(commandBuffer, "X") == 0) Service = 0; //Exit Service Mode
+                        else if (strcmp(commandBuffer, "0") == 0) Claas();
+                        else if (strcmp(commandBuffer, "1") == 0) Valtra();
+                        else if (strcmp(commandBuffer, "2") == 0) CNH();
+                        else if (strcmp(commandBuffer, "3") == 0) Fendt();
+                        else if (strcmp(commandBuffer, "4") == 0) JCB();
+                        else if (strcmp(commandBuffer, "5") == 0) FendtOne();
+                        else if (strcmp(commandBuffer, "6") == 0) Lindner();
+                        else if (strcmp(commandBuffer, "7") == 0) AgOpenGPS();
+                        else if (strcmp(commandBuffer, "8") == 0) CatMT();
+                        else if (strcmp(commandBuffer, "9") == 0) CatMT_Early();
+                        else if (strcmp(commandBuffer, "10") == 0) Deutz();
+                        else if (strcmp(commandBuffer, "R") == 0) ReadCAN();
+                        else if (strcmp(commandBuffer, "S") == 0) StopCAN();
+                        else if (strcmp(commandBuffer, "Z") == 0) setupPVED();
+                        else if (strcmp(commandBuffer, "f") == 0) gpsModeOne();
+                        else if (strcmp(commandBuffer, "F") == 0) gpsModeTwo();
+                        else if (strcmp(commandBuffer, "p") == 0) gpsModeThree();
+                        else if (strcmp(commandBuffer, "P") == 0) gpsModeFour();
+                        else
+                        {
+                            Serial.println("No command, send ? for help");
+                            Serial.println(" ");
+                            delay(50);
+                        }
+
+                        commandIndex = 0;
+                    }
+
+                    continue;
         }
 
-        while (Serial.available())
-        {
-        Serial.read();                //Clear the serial buffer
-        }
+                if (commandIndex < (sizeof(commandBuffer) - 1))
+                {
+                    commandBuffer[commandIndex++] = b;
+                    Serial.print(b);
+                    Serial.flush();
+                }
+                else
+                {
+                    commandIndex = 0;
+                    Serial.println("Command too long, send ? for help");
+                    Serial.println(" ");
+                }
       }
 
       if (tempChecker > 10000)

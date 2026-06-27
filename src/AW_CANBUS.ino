@@ -541,6 +541,8 @@ void setup()
     Serial.println("Brand = Cat MT Late (Set Via Service Tool)");
   else if (Brand == 9)
     Serial.println("Brand = Cat MT Early (Set Via Service Tool)");
+  else if (Brand == 10)
+    Serial.println("Brand = Deutz (Set Via Service Tool)");
   else
     Serial.println("No Tractor Brand Set, Set Via Service Tool");
 
