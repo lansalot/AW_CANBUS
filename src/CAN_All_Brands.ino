@@ -298,8 +298,10 @@ void VBus_Send()
     VBusSendData.len = 8;
     VBusSendData.buf[0] = lowByte(setCurve);
     VBusSendData.buf[1] = highByte(setCurve);
-	if (intendToSteer == 1)VBusSendData.buf[2] = 253;
-	if (intendToSteer == 0)VBusSendData.buf[2] = 252;
+    if (intendToSteer == 1)
+      VBusSendData.buf[2] = 253;
+    if (intendToSteer == 0)
+      VBusSendData.buf[2] = 252;
     VBusSendData.buf[3] = 255;
     VBusSendData.buf[4] = 255;
     VBusSendData.buf[5] = 255;
@@ -401,6 +403,25 @@ void VBus_Send()
     VBusSendData.buf[5] = 255;
     VBusSendData.buf[6] = 255;
     VBusSendData.buf[7] = 255;
+    V_Bus.write(VBusSendData);
+  }
+  else if (Brand == 10)
+  {
+    VBusSendData.id = 0x0CAD131C;
+    VBusSendData.flags.extended = true;
+    VBusSendData.len = 8;
+    VBusSendData.buf[0] = lowByte(setCurve);
+    VBusSendData.buf[1] = highByte(setCurve);
+    if (intendToSteer == 1)
+      VBusSendData.buf[2] = 253; // from mf8s test
+    // if (intendToSteer == 1 || steeringValveReady == 0x40 || steeringValveReady == 0x10) VBusSendData.buf[2] = 253;
+    if (intendToSteer == 0)
+      VBusSendData.buf[2] = 252;
+    VBusSendData.buf[3] = 0;
+    VBusSendData.buf[4] = 0;
+    VBusSendData.buf[5] = 0;
+    VBusSendData.buf[6] = 0;
+    VBusSendData.buf[7] = 0;
     V_Bus.write(VBusSendData);
   }
 }
