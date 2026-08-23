@@ -189,7 +189,9 @@ void CAN_setup(void)
   if (Brand == 2)
   {
     K_Bus.setFIFOFilter(0, 0x14FF7706, EXT); // CaseIH Engage Message
-    K_Bus.setFIFOFilter(1, 0x18FE4523, EXT); // CaseIH Rear Hitch Infomation
+    K_Bus.setFIFOFilter(1, 0x18FF1A03, EXT); // CaseIH Engage Message
+    K_Bus.setFIFOFilter(2, 0x18FE4523, EXT); // CaseIH Rear Hitch Infomation
+
   }
   if (Brand == 3)
   {
@@ -929,7 +931,15 @@ void K_Receive()
           relayTime = ((millis() + 1000));
         }
       }
-
+      if (KBusReceiveData.id == 0x18FF1A03) //**NH Engage Message**
+      {
+        if (KBusReceiveData.buf[2] == 0x15)
+        {
+          Time = millis();
+          engageCAN = 1;
+          relayTime = ((millis() + 1000));
+        }
+      }
       if (KBusReceiveData.id == 0x18FE4523)
       {
         RearHitch = (KBusReceiveData.buf[0]);
